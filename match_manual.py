@@ -15,7 +15,7 @@ def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextra
                         coords=None,refindex=0,flipxy=False,RAlabel='RA',DEClabel='DEC',
                           TIMElabel='TIME',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                           pixelscale=None,order=3,tolerance=1,plotting=False,
-                         reextract=False,requery=False,resolve=False,skipastro=False):
+                         reextract=False,requery=False,resolve=False,skipastro=False,alias='sex'):
     '''
     Find sources on images and query PANSTARRS for catalog stars
     '''
@@ -34,7 +34,7 @@ def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextra
         done_extract = os.path.exists(im.sourcefile)
         if reextract is True or done_extract is False:
             print "Running SExtractor..."
-            im.runSExtractor(sextractfile)
+            im.runSExtractor(sextractfile,alias=alias)
             
         if i == refindex:
             refim = im

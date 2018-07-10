@@ -135,7 +135,7 @@ class image(object):
     '''
     
     def __init__(self,filename,resultsdir,astrometrydir,stardir,sourcedir,flipxy=False,
-                 RAlabel='RA',DEClabel='DEC',TIMElabel='TIME',FILTlabel='FILTER',
+                 RAlabel='RA',DEClabel='DEC',TIMElabel='JD',FILTlabel='FILTER',
                  OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                  pointingpixel=None,pixelscale=None,tolerance=2):
             
@@ -175,13 +175,13 @@ class image(object):
         else:
             self.pointx,self.pointy = pointingpixel[0],pointingpixel[1]
             
-    def runSExtractor(self,sextractfile):
+    def runSExtractor(self,sextractfile,alias='sex'):
         '''
         Run SEXtractor on the image using the given configuration file
         '''
         
         inp = self.filename
-        cmd = 'sex '+inp+' -c '+sextractfile+' -catalog_name '+self.sourcefile
+        cmd = alias+' '+inp+' -c '+sextractfile+' -catalog_name '+self.sourcefile
         os.system(cmd)
         
     def getstars(self):

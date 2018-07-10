@@ -1,0 +1,70 @@
+ 
+#-------------------------------- Catalog ------------------------------------
+ 
+CATALOG_NAME    test.cat        # not used; command line forces
+CATALOG_TYPE    ASCII_HEAD      # "NONE","ASCII_HEAD","ASCII","FITS_1.0"
+                                # or "FITS_LDAC"
+ 
+PARAMETERS_NAME sextract.param   # name of the file containing catalog contents
+ 
+#------------------------------- Extraction ----------------------------------
+DETECT_TYPE     CCD             # "CCD" or "PHOTO"
+FLAG_IMAGE	dummy_flag.fits
+DETECT_MINAREA  3.               # minimum number of pixels above threshold
+DETECT_THRESH   10.              # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
+ANALYSIS_THRESH 10.              # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
+ 
+FILTER          N               # apply filter for detection ("Y" or "N")?
+DEBLEND_NTHRESH 64              # Number of deblending sub-thresholds; was 64
+DEBLEND_MINCONT 0.01           # Minimum contrast ; was .0001
+# 
+CLEAN           Y               # Clean spurious detections? (Y or N)?
+CLEAN_PARAM     0.1             # Cleaning efficiency
+ 
+MASK_TYPE       NONE         # type of detection MASKing: can be one of
+                                # "NONE", "BLANK" or "CORRECT"
+INTERP_MAXXLAG	1		# interpolate over mask, but only by 1 pixel
+INTERP_MAXYLAG  1
+INTERP_TYPE     ALL
+WEIGHT_TYPE	NONE	#be sure to put the mask on the command line!
+ 
+#------------------------------ Photometry -----------------------------------
+ 
+PHOT_APERTURES  5               # MAG_APER aperture diameter(s) in pixels
+PHOT_AUTOPARAMS 2.5, 3.5        # MAG_AUTO parameters: <Kron_fact>,<min_radius>
+ 
+SATUR_LEVEL     53000.0         # level (in ADUs) at which arises saturation
+ 
+MAG_ZEROPOINT   0.0             # magnitude zero-point
+MAG_GAMMA       4.0             # gamma of emulsion (for photographic scans)
+GAIN            1.2             # detector gain in e-/ADU
+PIXEL_SCALE     0.363          # size of pixel in arcsec (0=use FITS WCS info)
+#------------------------- Star/Galaxy Separation ----------------------------
+ 
+SEEING_FWHM     1.0             # stellar FWHM in arcsec
+#STARNNW_NAME    /home/mbrown/subaru/hscproc/sextract/quest/default.nnw     # Neural-Network_Weight table filename
+ 
+#------------------------------ Background -----------------------------------
+ 
+BACK_SIZE       20              # Background mesh: <size> or <width>,<height>
+BACK_FILTERSIZE 3               # Background filter: <size> or <width>,<height>
+ 
+BACKPHOTO_TYPE  LOCAL          # can be "GLOBAL" or "LOCAL"
+ 
+#------------------------------ Check Image ----------------------------------
+ 
+CHECKIMAGE_TYPE OBJECTS            # can be one of "NONE", "BACKGROUND",
+                                # "MINIBACKGROUND", "-BACKGROUND", "OBJECTS",
+                                # "-OBJECTS", "SEGMENTATION", "APERTURES",
+                                # or "FILTERED"
+CHECKIMAGE_NAME check.fits      # Filename for the check-image
+ 
+#--------------------- Memory (change with caution!) -------------------------
+ 
+MEMORY_OBJSTACK 50000            # number of objects in stack
+MEMORY_PIXSTACK 10000000          # number of pixels in stack
+MEMORY_BUFSIZE  24000            # number of lines in buffer
+ 
+#----------------------------- Miscellaneous ---------------------------------
+ 
+VERBOSE_TYPE    NORMAL          # can be "QUIET", "NORMAL" or "FULL"

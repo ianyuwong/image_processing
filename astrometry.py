@@ -15,7 +15,7 @@ def do_astrometry(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
                   flipxy=False,RAlabel='RA',DEClabel='DEC',
                   TIMElabel='TIME',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                   pointingpixel=None,pixelscale=None,tolerance=5,order=3,
-                  reextract=False,requery=False,resolve=False,plotting=False,skipastro=False):
+                  reextract=False,requery=False,resolve=False,plotting=False,skipastro=False,alias='sex'):
     '''
     Solve astrometry for a list of images with the aid of user inputs:
         flipxy: if True, up = East, right = North
@@ -43,7 +43,7 @@ def do_astrometry(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
         done_extract = os.path.exists(im.sourcefile)
         if reextract is True or done_extract is False:
             print "Running SExtractor..."
-            im.runSExtractor(sextractfile)
+            im.runSExtractor(sextractfile,alias=alias)
             
         #Query PANSTARRS for catalog stars, if needed
         done_query = os.path.exists(im.starfile)

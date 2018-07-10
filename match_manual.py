@@ -13,7 +13,7 @@ import aux
 
 def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
                         coords=None,refindex=0,flipxy=False,RAlabel='RA',DEClabel='DEC',
-                          TIMElabel='TIME',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
+                          TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                           pixelscale=None,order=3,tolerance=1,plotting=False,
                          reextract=False,requery=False,resolve=False,skipastro=False,alias='sex'):
     '''
@@ -57,7 +57,7 @@ def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextra
 
 def do_photometry_manual(files,resultsdir,stardir,sourcedir,photometrydir,filters,
                 oldphotometrydir=None,rephot=False,starfile=None,flipxy=False,
-                FILTlabel='FILTER',TIMElabel='TIME'):
+                FILTlabel='FILTER',TIMElabel='JD',OBJlabel='OBJECT'):
     '''
     Match sources by clicking on sources on the reference image
     and stars in the catalog OR rematch sources given a different aperture

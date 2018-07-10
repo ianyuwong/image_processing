@@ -7,6 +7,7 @@ Created on Thu Dec 28 23:19:28 2017
 from __future__ import division
 import os
 import sys
+
 import numpy as np
 import astropy.io.fits as fits
 import pdb
@@ -79,7 +80,7 @@ def makebiasflat(files,imtype='flat',bias=None):
     out = np.median(frames,axis=2)
 
     if imtype == 'flat':
-        out = (out-bias)
+        out = (out-bias)/np.median(out-bias)
 
     return out
 

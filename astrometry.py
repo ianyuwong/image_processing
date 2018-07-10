@@ -11,9 +11,9 @@ import time
 import aux
 
 
-def do_astrometry(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
+def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,
                   flipxy=False,RAlabel='RA',DEClabel='DEC',
-                  TIMElabel='TIME',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
+                  TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                   pointingpixel=None,pixelscale=None,tolerance=5,order=3,
                   reextract=False,requery=False,resolve=False,plotting=False,skipastro=False,alias='sex'):
     '''
@@ -32,7 +32,7 @@ def do_astrometry(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
     nfiles = len(files)
     print "Processing "+str(nfiles)+" files..."
  
-    for i,fi in enumerate(sorted(files)[111:112]):
+    for i,fi in enumerate(sorted(files)):
         #Load files into image objects
         print "Working on "+fi+"  "+str(i+1)+"/"+str(nfiles)
         im = aux.image(fi,resultsdir,astrometrydir,stardir,sourcedir,flipxy,
@@ -54,10 +54,6 @@ def do_astrometry(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
         #Solve astrometry, if needed
         if not skipastro:
             done_solve = os.path.exists(im.astrofile)
-##            if done_solve:
-##                print "Working on "+fi+"  "+str(i+1)+"/"+str(nfiles)
-##                data = aux.loadpickle(im.astrofile)
-##                print data.shift
             if resolve is True or done_solve is False:
                 print "Solving astrometry..."
                 it = 0

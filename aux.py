@@ -80,7 +80,7 @@ def makebiasflat(files,imtype='flat',bias=None):
     out = np.median(frames,axis=2)
 
     if imtype == 'flat':
-        out = (out-bias)/np.median(out-bias)
+        out = (out-bias)
 
     return out
 
@@ -134,14 +134,13 @@ class image(object):
     A generic data object for a single astronomical image
     '''
     
-    def __init__(self,filename,resultsdir,astrometrydir,stardir,sourcedir,flipxy=False,
+    def __init__(self,filename,astrometrydir,stardir,sourcedir,flipxy=False,
                  RAlabel='RA',DEClabel='DEC',TIMElabel='JD',FILTlabel='FILTER',
                  OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                  pointingpixel=None,pixelscale=None,tolerance=2):
             
         self.filename = filename
         self.shortname = self.filename[self.filename.rfind('/')+1:]
-        self.resultsdir = resultsdir
         self.astrometrydir = astrometrydir
         self.sourcedir = sourcedir
         self.stardir = stardir
@@ -672,12 +671,11 @@ class photometry(object):
     A generic data object for photometric calibration
     '''
     
-    def __init__(self,filename,resultsdir,stardir,sourcedir,astrometrydir,photometrydir,flipxy=False,
-                 FILTlabel='FILTER',TIMElabel='TIME',OBJlabel='OBJECT',starfile=None):
+    def __init__(self,filename,stardir,sourcedir,astrometrydir,photometrydir,flipxy=False,
+                 FILTlabel='FILTER',TIMElabel='JD',OBJlabel='OBJECT',starfile=None):
             
         self.filename = filename
         self.shortname = self.filename[self.filename.rfind('/')+1:]
-        self.resultsdir = resultsdir
         self.sourcedir = sourcedir
         self.stardir = stardir
         self.sourcefile = self.sourcedir+self.shortname+'.cat'

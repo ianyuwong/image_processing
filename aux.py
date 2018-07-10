@@ -7,7 +7,6 @@ Created on Thu Dec 28 23:19:28 2017
 from __future__ import division
 import os
 import sys
-
 import numpy as np
 import astropy.io.fits as fits
 import pdb

@@ -15,7 +15,7 @@ def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,
                   flipxy=False,RAlabel='RA',DEClabel='DEC',
                   TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                   pointingpixel=None,pixelscale=None,tolerance=5,order=3,
-                  reextract=False,requery=False,resolve=False,plotting=False,skipastro=False,alias='sex'):
+                  reextract=False,requery=False,resolve=False,plotting=True,skipastro=False,alias='sex'):
     '''
     Solve astrometry for a list of images with the aid of user inputs:
         flipxy: if True, up = East, right = North

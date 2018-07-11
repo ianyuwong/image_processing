@@ -240,7 +240,7 @@ class image(object):
         
         #Choose 200 3-source triplets that span most of the image
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
- #       triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
+        triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
  
         #Try to solve
@@ -264,6 +264,14 @@ class image(object):
                     #Plot
                     if plotting:
                         self.plotsolution()
+                #Save
+                if solved:
+                    sav = raw_input("Acceptable? (y/n)")
+                    if sav == 'y':
+                        savepickle(self,self.astrofile)
+                    else:
+                        solved = False
+                        att += 1
         
         return solved
 
@@ -294,12 +302,18 @@ class image(object):
         self.dst = np.asarray(zip(starx,stary))
         self.zpguess = np.median(self.match_stars[:,2]+2.5*np.log10(self.match_sources[:,2]))
 
-        #Transform and save
+        #Transform
         done = self.transform(order)
 
         #Plot
         if plotting and done:
             self.plotsolution()
+
+        #Save
+        if done:
+            sav = raw_input("Acceptable? (y/n)")
+            if sav == 'y':
+                savepickle(self,self.astrofile)
             
     def findmatch(self,triplet,sourcedist,stardist):
         '''
@@ -430,8 +444,6 @@ class image(object):
             print "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+"    Shift = "+str(round(self.shift,1))+" pixels"
             print self.calc_point[0]
 
-            #Save
-            savepickle(self,self.astrofile)
             return True          
         
     def plotsolution(self):

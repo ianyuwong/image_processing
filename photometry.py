@@ -10,7 +10,7 @@ import time
 
 import aux
 
-def do_photometry(files,resultsdir,stardir,sourcedir,astrometrydir,photometrydir,filters,
+def do_photometry(files,stardir,sourcedir,astrometrydir,photometrydir,filters,
                 oldphotometrydir=None,rephot=False,justmatch=False,flipxy=False,
                 FILTlabel='FILTER',TIMElabel='JD',OBJlabel='OBJECT'):
     '''
@@ -22,7 +22,7 @@ def do_photometry(files,resultsdir,stardir,sourcedir,astrometrydir,photometrydir
     files = sorted(files)
 
     for i,file in enumerate(sorted(files)):
-        phot = aux.photometry(file,resultsdir,stardir,sourcedir,astrometrydir,photometrydir,flipxy=flipxy,
+        phot = aux.photometry(file,stardir,sourcedir,astrometrydir,photometrydir,flipxy=flipxy,
                           FILTlabel=FILTlabel,TIMElabel=TIMElabel,OBJlabel=OBJlabel)
         done_phot = os.path.exists(phot.photometrydir+phot.shortname+'.phot')
         if rephot is True or done_phot is False:

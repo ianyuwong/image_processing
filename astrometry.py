@@ -14,7 +14,7 @@ import aux
 def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,
                   flipxy=False,RAlabel='RA',DEClabel='DEC',
                   TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
-                  pointingpixel=None,pixelscale=None,tolerance=5,order=3,
+                  pointingpixel=None,pixelscale=None,tolerance=2,order=2,
                   reextract=False,requery=False,resolve=False,plotting=True,skipastro=False,alias='sex'):
     '''
     Solve astrometry for a list of images with the aid of user inputs:

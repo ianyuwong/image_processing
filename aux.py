@@ -18,6 +18,9 @@ import scipy.optimize
 from scipy.spatial import distance
 import itertools
 import matplotlib.pyplot as plt
+import matplotlib.tri as tri
+import matplotlib
+from matplotlib.patches import Polygon
 import matplotlib.colors as colors
 import skimage.transform as sk
 from astroquery.jplhorizons import Horizons
@@ -242,7 +245,7 @@ class image(object):
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
- 
+        
         #Try to solve
         solved = False
         att = 0
@@ -403,6 +406,7 @@ class image(object):
         '''
         
         #Initial linear transformation based on initial matches
+        self.rlsrc = self.src
         initialtrans = sk.estimate_transform('polynomial',self.src,self.dst,order=1)
         
         #Look for more matches (based on both distance and brightness)
@@ -450,7 +454,7 @@ class image(object):
         '''
         Comparison plot of sources and stars with matched triplet marked
         '''
-
+        
         hdulist = fits.open(self.filename)
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)
@@ -460,6 +464,8 @@ class image(object):
         med,std = np.median(flat),np.std(flat)
         ima[np.where((ima-med)>3*std)] = med+3*std
         ima[np.where((med-ima)>3*std)] = med-3*std
+
+        plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1])
         ax.imshow(ima,norm=colors.LogNorm())
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')

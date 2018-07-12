@@ -245,7 +245,7 @@ class image(object):
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
-        self.trisource = source_triplets
+      
         #Try to solve
         solved = False
         att = 0
@@ -416,7 +416,6 @@ class image(object):
         else:
             starcoords = np.asarray(zip(self.stars.ra,self.stars.dec))
         calc_points = initialtrans.__call__(sourcecoords)
-        #pdb.set_trace()
         sourceidx,staridx = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(self.sources.flux)+self.zpguess-self.stars.mag[i])
@@ -455,6 +454,7 @@ class image(object):
         '''
         Comparison plot of sources and stars with matched triplet marked
         '''
+        
         hdulist = fits.open(self.filename)
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)
@@ -464,8 +464,6 @@ class image(object):
         med,std = np.median(flat),np.std(flat)
         ima[np.where((ima-med)>3*std)] = med+3*std
         ima[np.where((med-ima)>3*std)] = med-3*std
-
-
 
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1])
         ax.imshow(ima,norm=colors.LogNorm())

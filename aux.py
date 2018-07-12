@@ -245,7 +245,7 @@ class image(object):
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
-      
+        
         #Try to solve
         solved = False
         att = 0

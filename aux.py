@@ -511,9 +511,11 @@ class image(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         flat = np.ndarray.flatten(ima)
-        med,std = np.median(flat),np.std(flat)
-        ima[np.where((ima-med)>3*std)] = med+3*std
-        ima[np.where((med-ima)>3*std)] = med-3*std
+        cutoff = np.percentile(flat,85)
+        filtered = flat[flat<cutoff]
+        med,std = np.median(filtered),np.std(filtered)
+        ima[np.where((ima-med)>5*std)] = med+5*std
+        ima[np.where((med-ima)>5*std)] = med-5*std
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1], color = 'red')
         ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')

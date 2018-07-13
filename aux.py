@@ -484,7 +484,6 @@ class image(object):
         '''
         Comparison plot of sources and stars with matched triplet marked
         '''
-        pdb.set_trace()
         hdulist = fits.open(self.filename)
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)

@@ -489,7 +489,6 @@ class image(object):
         med,std = np.median(flat),np.std(flat)
         ima[np.where((ima-med)>3*std)] = med+3*std
         ima[np.where((med-ima)>3*std)] = med-3*std
-
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1])
         ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('prism') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')

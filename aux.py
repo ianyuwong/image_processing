@@ -124,8 +124,7 @@ def invert_mask(file,output,axis=None,mask=None):
         num  = len(mask)
         imx = np.isinf(im)
         for i in range(num):
-            mask1 = mask[i]
-            x1,x2,y1,y2 = mask1
+            x1,x2,y1,y2 = mask[i]
             masked = im[y1:y2,x1:x2]    
             imx[y1:y2,x1:x2] = True
         nonmasked = ma.array(im, mask = imx, fill_value = float('NaN') )
@@ -255,7 +254,7 @@ class image(object):
         self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
 
-        #Choose 200 3-source triplets that span most of the image in both x and y directions master
+        #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
         w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)
@@ -445,10 +444,14 @@ class image(object):
                     sourceidx.append(w1[0][w2[0][0]])
                     staridx.append(i)
             
-        if len(sourceidx)<5:
+        if len(sourceidx)<max((order+1)*(order+2)/2+1,5):
             print "Few matching stars. Trying to re-solve astrometry..."
             return False
         else:
+##            #Bump up order if there are many matched sources
+##            if len(sourceidx)>(order+1)*(order+2):
+##                order += 1
+                
             #Create final transformation
             self.matchidx = sourceidx
             self.src = np.asarray(zip(self.sources.x[sourceidx],self.sources.y[sourceidx]))

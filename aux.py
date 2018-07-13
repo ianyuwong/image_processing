@@ -253,10 +253,14 @@ class image(object):
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
-        pdb.set_trace()
-        #Choose 200 3-source triplets that span most of the image
+
+        #Choose 200 3-source triplets that span most of the image in both x and y directions master
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
-        triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
+        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
+        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)
+                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>len(self.sources.x)/2))
+        triplets = triplets[w]
+        xorder = xorder[w]
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
         
         #Try to solve
@@ -400,12 +404,12 @@ class image(object):
         self.dst = np.asarray(zip(starx,stary))
         trans = sk.estimate_transform('polynomial',self.dst,self.src,order=1)
         if self.flipxy:
-            self.calc_point = trans.__call__(np.array([[self.DEC_image,self.RA_image]]))
+            calc_point = trans.__call__(np.array([[self.DEC_image,self.RA_image]]))
         else:
-            self.calc_point = trans.__call__(np.array([[self.RA_image,self.DEC_image]]))
+            calc_point = trans.__call__(np.array([[self.RA_image,self.DEC_image]]))
         error_tol = 0.2*max(self.nx,self.ny)
-        self.shift = dist(self.calc_point,np.array([[self.pointx,self.pointy]]))
-        check5 = self.shift < error_tol
+        shift = dist(calc_point,np.array([[self.pointx,self.pointy]]))
+        check5 = shift < error_tol
 
         #Check relative photometry
         zps = starmag+2.5*np.log10(sourceflux)
@@ -453,14 +457,20 @@ class image(object):
             else:
                 self.dst = np.asarray(zip(self.stars.ra[staridx],self.stars.dec[staridx]))
             self.trans = sk.estimate_transform('polynomial',self.src,self.dst,order=order)
-            
-            #Compute median error in position
+
+            #Compute median error in position and shift from predicted pointing
             est = self.trans.__call__(self.src)
             self.error = np.median(dist(est,self.dst)/arcsectodeg)
             if self.error > 2:
                 return False
+            calc_point = self.trans.__call__(np.array([[self.pointx,self.pointy]]))
+            if self.flipxy:
+                self.shift = dist(calc_point,np.array([[self.DEC_image,self.RA_image]]))/arcsectodeg/self.pxscale
+            else:
+                self.shift = dist(calc_point,np.array([[self.RA_image,self.DEC_image]]))/arcsectodeg/self.pxscale
+            if self.shift > 0.2*max(self.nx,self.ny):
+                return False
             print "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+"    Shift = "+str(round(self.shift,1))+" pixels"
-            print self.calc_point[0]
 
             return True          
         

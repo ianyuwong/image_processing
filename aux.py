@@ -275,7 +275,6 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
-                pdb.set_trace()
                 #Transform and save
                 passed = self.transform(order)
                 if not passed:

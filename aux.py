@@ -127,16 +127,15 @@ def invert_mask(file,output,axis=None,mask=None):
             x1,x2,y1,y2 = mask[i]
             masked = im[y1:y2,x1:x2]    
             imx[y1:y2,x1:x2] = True
-        nonmasked = ma.array(im, mask = imx, fill_value = float('NaN') )
+        nonmasked = ma.array(im, mask = imx, fill_value = float('NaN') , dtype = float)
         med = ma.median(nonmasked)
         pd_nonmasked = pd.DataFrame(nonmasked)
         M = len(pd_nonmasked.index)
         N = len(pd_nonmasked.columns)
-        random = pd.DataFrame(np.random.normal(loc = med, scale = med*0.5), columns=pd_nonmasked.columns, index=pd_nonmasked.index)
+        random = pd.DataFrame(np.random.randn(M,N), columns=pd_nonmasked.columns, index=pd_nonmasked.index)
         pd_nonmasked.update(random)
         np_final  = pd_nonmasked.as_matrix()
-        hdulist[0].data = np_final
-    hdu = fits.PrimaryHDU(im,header=hdulist[0].header)
+    hdu = fits.PrimaryHDU(np_final,header=hdulist[0].header)
     hdu.writeto(output,clobber=True)
                 
 def fit_intercept(x,b):

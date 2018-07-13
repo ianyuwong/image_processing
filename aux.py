@@ -431,10 +431,14 @@ class image(object):
                     sourceidx.append(w1[0][w2[0][0]])
                     staridx.append(i)
             
-        if len(sourceidx)<5:
+        if len(sourceidx)<max((order+1)*(order+2)/2+1,5):
             print "Few matching stars. Trying to re-solve astrometry..."
             return False
         else:
+##            #Bump up order if there are many matched sources
+##            if len(sourceidx)>(order+1)*(order+2):
+##                order += 1
+                
             #Create final transformation
             self.matchidx = sourceidx
             self.src = np.asarray(zip(self.sources.x[sourceidx],self.sources.y[sourceidx]))

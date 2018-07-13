@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 import matplotlib
 from matplotlib.patches import Polygon
+from matplotlib.colors import LogNorm
 import matplotlib.colors as colors
 import skimage.transform as sk
 from astroquery.jplhorizons import Horizons
@@ -491,7 +492,7 @@ class image(object):
         ima[np.where((med-ima)>3*std)] = med-3*std
 
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1])
-        ax.imshow(ima,norm=colors.LogNorm())
+        ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('prism') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')
         ax.set_xlim(-1,ima.shape[1])

@@ -132,9 +132,14 @@ def invert_mask(file,output,axis=None,mask=None):
         pd_nonmasked = pd.DataFrame(nonmasked)
         M = len(pd_nonmasked.index)
         N = len(pd_nonmasked.columns)
-        random = pd.DataFrame(np.random.randn(M,N), columns=pd_nonmasked.columns, index=pd_nonmasked.index)
-        pd_nonmasked.update(random)
+        #random = pd.DataFrame(np.random.randn(M,N), columns=pd_nonmasked.columns, index=pd_nonmasked.index)\val = np.ravel(df.values)
+        val = np.ravel(pd_nonmasked.values)
+        val = val[~np.isnan(val)]
+        val = np.random.choice(val, size=(M,N))
+        random = pd.DataFrame(val, columns=pd_nonmasked.columns, index=pd_nonmasked.index)
+        pd_nonmasked.update(random, overwrite = False)
         np_final  = pd_nonmasked.as_matrix()
+        #pdb.set_trace()
     hdu = fits.PrimaryHDU(np_final,header=hdulist[0].header)
     hdu.writeto(output,clobber=True)
                 

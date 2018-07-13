@@ -124,8 +124,7 @@ def invert_mask(file,output,axis=None,mask=None):
         num  = len(mask)
         imx = np.isinf(im)
         for i in range(num):
-            mask1 = mask[i]
-            x1,x2,y1,y2 = mask1
+            x1,x2,y1,y2 = mask[i]
             masked = im[y1:y2,x1:x2]    
             imx[y1:y2,x1:x2] = True
         nonmasked = ma.array(im, mask = imx, fill_value = float('NaN') )
@@ -255,7 +254,7 @@ class image(object):
         self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
 
-        #Choose 200 3-source triplets that span most of the image in both x and y directions master
+        #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
         w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)

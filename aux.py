@@ -134,6 +134,7 @@ def invert_mask(file,output,axis=None,mask=None):
         N = len(pd_nonmasked.columns)
         val = np.ravel(pd_nonmasked.values)
         val = val[~np.isnan(val)]
+        val[val>0.305] = 0.2
         val = np.random.choice(val, size=(M,N))
         random = pd.DataFrame(val, columns=pd_nonmasked.columns, index=pd_nonmasked.index)
         pd_nonmasked.update(random, overwrite = False)
@@ -484,7 +485,6 @@ class image(object):
         '''
         Comparison plot of sources and stars with matched triplet marked
         '''
-        
         hdulist = fits.open(self.filename)
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)
@@ -495,7 +495,7 @@ class image(object):
         ima[np.where((ima-med)>3*std)] = med+3*std
         ima[np.where((med-ima)>3*std)] = med-3*std
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1], color = 'red')
-        ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('prism') )
+        ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')
         ax.set_xlim(-1,ima.shape[1])

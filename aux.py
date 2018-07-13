@@ -245,7 +245,7 @@ class image(object):
         f.write(out.read())
         f.close()
         
-    def solveastro(self,order,plotting):
+    def solveastro(self,order,plotting,num_sources=30):
         '''
         Solve the astrometry, assuming maximum tolerated scale deviation
         '''
@@ -253,16 +253,16 @@ class image(object):
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
-        self.sources = compilesources(self,minfwhm,maxfwhm)
-        self.stars = compilestars(self,no_galaxies=False)
+        self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
+        self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
 
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
-        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
-        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)
-                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>len(self.sources.x)/2))
-        triplets = triplets[w]
-        xorder = xorder[w]
+##        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
+##        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)
+##                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>len(self.sources.x)/2))
+##        triplets = triplets[w]
+##        xorder = xorder[w]
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
         
         #Try to solve
@@ -276,6 +276,7 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
+ 
                 #Transform and save
                 passed = self.transform(order)
                 if not passed:
@@ -296,7 +297,7 @@ class image(object):
         
         return solved
 
-    def solveastro_manual(self,order,plotting,reffile):
+    def solveastro_manual(self,order,plotting,reffile,num_sources=30):
         '''
         Solve the astrometry by clicking sources and stars that match
         '''
@@ -306,8 +307,8 @@ class image(object):
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
-        self.sources = compilesources(self,minfwhm,maxfwhm)
-        self.stars = compilestars(self,no_galaxies=False)
+        self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
+        self.stars = compilestars(self,no_galaxies=False,nunmb=num_sources*3)
 
         #Click on matching sources and stars and establish ballpark zeropoint
         click_sources(self)

@@ -14,7 +14,7 @@ import aux
 def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
                         coords=None,refindex=0,flipxy=False,RAlabel='RA',DEClabel='DEC',
                           TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
-                          pixelscale=None,order=3,tolerance=1,plotting=False,
+                          pixelscale=None,order=2,tolerance=2,num_sources=30,plotting=False,
                          reextract=False,requery=False,resolve=False,skipastro=False,alias='sex'):
     '''
     Find sources on images and query PANSTARRS for catalog stars
@@ -51,7 +51,7 @@ def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextra
             done_astro = os.path.exists(im.astrofile)
             if resolve is True or done_astro is False:
                 print "Manually solving astrometry..."
-                im.solveastro_manual(order,plotting,refim.starfile)
+                im.solveastro_manual(order,plotting,refim.starfile,num_sources=num_sources)
 
     return refim.starfile
 

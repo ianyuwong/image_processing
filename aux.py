@@ -258,12 +258,7 @@ class image(object):
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
 
         #Choose 200 3-source triplets that span most of the image in both x and y directions
-        triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
-##        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
-##        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)
-##                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>len(self.sources.x)/2))
-##        triplets = triplets[w]
-##        xorder = xorder[w]
+        triplets = self.get_triplets()
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
         
         #Try to solve
@@ -479,7 +474,32 @@ class image(object):
                 return False
             print "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+"    Shift = "+str(round(self.shift,1))+" pixels"
 
-            return True          
+            return True
+
+    def get_triplets(self):
+        '''
+        Create triplets and filter them to ensure they span most of the image in both x and y directions
+        and do not have other nearby sources close to vertices
+        '''
+        
+##        triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
+
+        #Filter away sources with nearby neighbors
+        mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
+        w = np.where(self.sources.dist < mindist)
+        if len(w[0]) > 0:
+            bad_index = np.unique(np.concatenate([w[0],w[1]]))
+            filt_index = np.delete(self.sources.index,bad_index)
+        triplets = np.asarray(list(itertools.combinations(filt_index,3)))
+
+        #Ensure wide coverage in x and y
+        indrange = max(filt_index)-min(filt_index)
+        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
+        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>indrange/2)
+                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>indrange/2))
+        triplets = triplets[w]
+
+        return triplets
         
     def plotsolution(self):
         '''

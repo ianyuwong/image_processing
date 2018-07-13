@@ -32,7 +32,7 @@ def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,
     nfiles = len(files)
     print "Processing "+str(nfiles)+" files..."
  
-    for i,fi in enumerate(sorted(files)):
+    for i,fi in enumerate(sorted(files)[40:41]):
         #Load files into image objects
         print "Working on "+fi+"  "+str(i+1)+"/"+str(nfiles)
         im = aux.image(fi,astrometrydir,stardir,sourcedir,flipxy,

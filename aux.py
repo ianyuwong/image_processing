@@ -275,7 +275,7 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
-                
+                pdb.set_trace()
                 #Transform and save
                 passed = self.transform(order)
                 if not passed:
@@ -489,7 +489,7 @@ class image(object):
         med,std = np.median(flat),np.std(flat)
         ima[np.where((ima-med)>3*std)] = med+3*std
         ima[np.where((med-ima)>3*std)] = med-3*std
-        plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1])
+        plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1], color = 'red')
         ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('prism') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')

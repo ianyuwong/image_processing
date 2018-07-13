@@ -254,9 +254,8 @@ class image(object):
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
-        pdb.set_trace()
 
-        #Choose 200 3-source triplets that span most of the image in both x and y directions
+        #Choose 200 3-source triplets that span most of the image in both x and y directions master
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
         w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)

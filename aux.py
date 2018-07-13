@@ -9,8 +9,10 @@ import os
 import sys
 
 import numpy as np
+import numpy.ma as ma
 import astropy.io.fits as fits
 import pdb
+import pandas as pd
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.wcs import WCS
@@ -21,6 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.tri as tri
 import matplotlib
 from matplotlib.patches import Polygon
+from matplotlib.colors import LogNorm
 import matplotlib.colors as colors
 import skimage.transform as sk
 from astroquery.jplhorizons import Horizons
@@ -118,12 +121,21 @@ def invert_mask(file,output,axis=None,mask=None):
         elif axis == 'xy':
             im = im[::-1,::-1]
     if mask != None:
-        med,std = np.median(im),np.std(im)
-        x1,x2,y1,y2 = mask
-        masked = im[y1:y2,x1:x2]
-        mask = np.random.normal(loc=med,scale=0.01*std,size=np.shape(masked))
-        im[y1:y2,x1:x2] = med
-
+        num  = len(mask)
+        imx = np.isinf(im)
+        for i in range(num):
+            x1,x2,y1,y2 = mask[i]
+            masked = im[y1:y2,x1:x2]    
+            imx[y1:y2,x1:x2] = True
+        nonmasked = ma.array(im, mask = imx, fill_value = float('NaN') )
+        med = ma.median(nonmasked)
+        pd_nonmasked = pd.DataFrame(nonmasked)
+        M = len(pd_nonmasked.index)
+        N = len(pd_nonmasked.columns)
+        random = pd.DataFrame(np.random.normal(loc = med, scale = med*0.5), columns=pd_nonmasked.columns, index=pd_nonmasked.index)
+        pd_nonmasked.update(random)
+        np_final  = pd_nonmasked.as_matrix()
+        hdulist[0].data = np_final
     hdu = fits.PrimaryHDU(im,header=hdulist[0].header)
     hdu.writeto(output,clobber=True)
                 
@@ -238,9 +250,10 @@ class image(object):
         
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
-        self.sources = compilesources(self,minfwhm)
+        maxfwhm = 5.0/self.pxscale
+        self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
-        
+
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
@@ -261,7 +274,7 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
-                
+                pdb.set_trace()
                 #Transform and save
                 passed = self.transform(order)
                 if not passed:
@@ -291,7 +304,8 @@ class image(object):
 
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
-        self.sources = compilesources(self,minfwhm)
+        maxfwhm = 5.0/self.pxscale
+        self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
 
         #Click on matching sources and stars and establish ballpark zeropoint
@@ -478,9 +492,8 @@ class image(object):
         med,std = np.median(flat),np.std(flat)
         ima[np.where((ima-med)>3*std)] = med+3*std
         ima[np.where((med-ima)>3*std)] = med-3*std
-
-        plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1])
-        ax.imshow(ima,norm=colors.LogNorm())
+        plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1], color = 'red')
+        ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('prism') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')
         ax.set_xlim(-1,ima.shape[1])
@@ -564,7 +577,7 @@ class stars(object):
 
 #==========================================================================
 
-def compilesources(im,minfwhm,numb=30):
+def compilesources(im,minfwhm,maxfwhm,numb=30):
     '''
     Create list of sources that are likely astrophysical
     '''
@@ -577,7 +590,7 @@ def compilesources(im,minfwhm,numb=30):
     fwhm = data[:,7]
     flag = data[:,5].astype('int')
     
-    w = np.where((flux > 0)&(fwhm > minfwhm)&((flag == 0)|(flag == 2)))
+    w = np.where((flux > 0)&(fwhm > minfwhm)&(fwhm < maxfwhm)&((flag == 0)|(flag == 2)))
     return sources(np.column_stack([x[w],y[w],flux[w],fluxerr[w],fwhm[w]]),im.pxscale,numb=numb)
     
 def compilestars(im,no_galaxies=True,numb=100):

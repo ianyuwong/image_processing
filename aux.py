@@ -9,8 +9,10 @@ import os
 import sys
 
 import numpy as np
+import numpy.ma as ma
 import astropy.io.fits as fits
 import pdb
+import pandas as pd
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.wcs import WCS
@@ -118,12 +120,22 @@ def invert_mask(file,output,axis=None,mask=None):
         elif axis == 'xy':
             im = im[::-1,::-1]
     if mask != None:
-        med,std = np.median(im),np.std(im)
-        x1,x2,y1,y2 = mask
-        masked = im[y1:y2,x1:x2]
-        mask = np.random.normal(loc=med,scale=0.01*std,size=np.shape(masked))
-        im[y1:y2,x1:x2] = med
-
+        num  = len(mask)
+        imx = np.isinf(im)
+        for i in range(num):
+            mask1 = mask[i]
+            x1,x2,y1,y2 = mask1
+            masked = im[y1:y2,x1:x2]    
+            imx[y1:y2,x1:x2] = True
+        nonmasked = ma.array(im, mask = imx, fill_value = float('NaN') )
+        med = ma.median(nonmasked)
+        pd_nonmasked = pd.DataFrame(nonmasked)
+        M = len(pd_nonmasked.index)
+        N = len(pd_nonmasked.columns)
+        random = pd.DataFrame(np.random.normal(loc = med, scale = med*0.5), columns=pd_nonmasked.columns, index=pd_nonmasked.index)
+        pd_nonmasked.update(random)
+        np_final  = pd_nonmasked.as_matrix()
+        hdulist[0].data = np_final
     hdu = fits.PrimaryHDU(im,header=hdulist[0].header)
     hdu.writeto(output,clobber=True)
                 
@@ -238,9 +250,10 @@ class image(object):
         
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
-        self.sources = compilesources(self,minfwhm)
+        maxfwhm = 5.0/self.pxscale
+        self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
-        
+        pdb.set_trace()
         #Choose 200 3-source triplets that span most of the image
         triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
         triplets = triplets[(np.amax(triplets,axis=1)-np.amin(triplets,axis=1))>len(self.sources.x)/2]
@@ -287,7 +300,8 @@ class image(object):
 
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
-        self.sources = compilesources(self,minfwhm)
+        maxfwhm = 5.0/self.pxscale
+        self.sources = compilesources(self,minfwhm,maxfwhm)
         self.stars = compilestars(self,no_galaxies=False)
 
         #Click on matching sources and stars and establish ballpark zeropoint
@@ -550,7 +564,7 @@ class stars(object):
 
 #==========================================================================
 
-def compilesources(im,minfwhm,numb=30):
+def compilesources(im,minfwhm,maxfwhm,numb=30):
     '''
     Create list of sources that are likely astrophysical
     '''
@@ -563,7 +577,7 @@ def compilesources(im,minfwhm,numb=30):
     fwhm = data[:,7]
     flag = data[:,5].astype('int')
     
-    w = np.where((flux > 0)&(fwhm > minfwhm)&((flag == 0)|(flag == 2)))
+    w = np.where((flux > 0)&(fwhm > minfwhm)&(fwhm < maxfwhm)&((flag == 0)|(flag == 2)))
     return sources(np.column_stack([x[w],y[w],flux[w],fluxerr[w],fwhm[w]]),im.pxscale,numb=numb)
     
 def compilestars(im,no_galaxies=True,numb=100):

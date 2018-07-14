@@ -19,9 +19,9 @@ from astropy.wcs import WCS
 import scipy.optimize
 from scipy.spatial import distance
 import itertools
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
-import matplotlib
 from matplotlib.patches import Polygon
 from matplotlib.colors import LogNorm
 import matplotlib.colors as colors
@@ -180,6 +180,8 @@ class image(object):
         self.tolerance = tolerance/100.      #tolerance (in percent)
         self.pxscale = pixelscale     #pixel scale in arcseconds
         self.time = header[TIMElabel]
+        sav = 'n'
+        self.sav = sav
         if TIMElabel[0:3] == 'MJD':
             self.time = float(self.time)+2400000.5
         self.exptime = header[EXPTIMElabel]
@@ -288,8 +290,9 @@ class image(object):
                         self.plotsolution()
                 #Save
                 if solved:
-                    sav = raw_input("Acceptable? (y/n)")
-                    if sav == 'y':
+                    self.sav = raw_input("Acceptable? (y/n)")
+                    if self.sav == 'y':
+                        self.plotsolution()
                         savepickle(self,self.astrofile)
                     else:
                         solved = False
@@ -489,7 +492,10 @@ class image(object):
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)
         fig = plt.figure()
+        self.fig  = fig
         ax = fig.add_subplot(111)
+        pstr = "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+ "   Shift = "+str(round(self.shift,1))+" pixels"
+        plt.figtext(0, 0, pstr, color = 'black')
         flat = np.ndarray.flatten(ima)
         med,std = np.median(flat),np.std(flat)
         ima[np.where((ima-med)>3*std)] = med+3*std
@@ -502,7 +508,11 @@ class image(object):
         ax.set_ylim(-1,ima.shape[0])
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
-        plt.show()
+        if self.sav == 'y':
+            self.fig.savefig('png/' +self.filename + 'dude.png' , bbox_inches = 'tight')
+            plt.close(fig)
+        else:
+            plt.show()
         
 #==========================================================================
             

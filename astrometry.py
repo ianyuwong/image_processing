@@ -14,7 +14,7 @@ import aux
 def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,
                   flipxy=False,RAlabel='RA',DEClabel='DEC',
                   TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
-                  pointingpixel=None,pixelscale=None,tolerance=2,order=2,
+                  pointingpixel=None,pixelscale=None,tolerance=2,order=2,num_sources=30,
                   reextract=False,requery=False,resolve=False,plotting=True,skipastro=False,alias='sex'):
     '''
     Solve astrometry for a list of images with the aid of user inputs:
@@ -60,7 +60,7 @@ def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,
                 solved = False
                 while it < 3 and not solved:    #Try up to 3 times
                     print "Iteration "+str(it+1)
-                    solved = im.solveastro(order,plotting)
+                    solved = im.solveastro(order,plotting,num_sources=num_sources)
                     it += 1
 
 

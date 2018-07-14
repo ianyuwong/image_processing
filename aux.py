@@ -248,7 +248,7 @@ class image(object):
         f.write(out.read())
         f.close()
         
-    def solveastro(self,order,plotting):
+    def solveastro(self,order,plotting,num_sources=30):
         '''
         Solve the astrometry, assuming maximum tolerated scale deviation
         '''
@@ -256,16 +256,11 @@ class image(object):
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
-        self.sources = compilesources(self,minfwhm,maxfwhm)
-        self.stars = compilestars(self,no_galaxies=False)
+        self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
+        self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
 
         #Choose 200 3-source triplets that span most of the image in both x and y directions
-        triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
-        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
-        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>len(self.sources.y)/2)
-                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>len(self.sources.x)/2))
-        triplets = triplets[w]
-        xorder = xorder[w]
+        triplets = self.get_triplets()
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
         
         #Try to solve
@@ -279,6 +274,7 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
+ 
                 #Transform and save
                 passed = self.transform(order)
                 if not passed:
@@ -300,7 +296,7 @@ class image(object):
         
         return solved
 
-    def solveastro_manual(self,order,plotting,reffile):
+    def solveastro_manual(self,order,plotting,reffile,num_sources=30):
         '''
         Solve the astrometry by clicking sources and stars that match
         '''
@@ -310,8 +306,8 @@ class image(object):
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
-        self.sources = compilesources(self,minfwhm,maxfwhm)
-        self.stars = compilestars(self,no_galaxies=False)
+        self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
+        self.stars = compilestars(self,no_galaxies=False,nunmb=num_sources*3)
 
         #Click on matching sources and stars and establish ballpark zeropoint
         click_sources(self)
@@ -481,7 +477,32 @@ class image(object):
                 return False
             print "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+"    Shift = "+str(round(self.shift,1))+" pixels"
 
-            return True          
+            return True
+
+    def get_triplets(self):
+        '''
+        Create triplets and filter them to ensure they span most of the image in both x and y directions
+        and do not have other nearby sources close to vertices
+        '''
+        
+##        triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
+
+        #Filter away sources with nearby neighbors
+        mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
+        w = np.where(self.sources.dist < mindist)
+        if len(w[0]) > 0:
+            bad_index = np.unique(np.concatenate([w[0],w[1]]))
+            filt_index = np.delete(self.sources.index,bad_index)
+        triplets = np.asarray(list(itertools.combinations(filt_index,3)))
+
+        #Ensure wide coverage in x and y
+        indrange = max(filt_index)-min(filt_index)
+        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
+        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>indrange/2)
+                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>indrange/2))
+        triplets = triplets[w]
+
+        return triplets
         
     def plotsolution(self):
         '''
@@ -496,9 +517,11 @@ class image(object):
         pstr = "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+ "   Shift = "+str(round(self.shift,1))+" pixels"
         plt.figtext(0, 0, pstr, color = 'black')
         flat = np.ndarray.flatten(ima)
-        med,std = np.median(flat),np.std(flat)
-        ima[np.where((ima-med)>3*std)] = med+3*std
-        ima[np.where((med-ima)>3*std)] = med-3*std
+        cutoff = np.percentile(flat,85)
+        filtered = flat[flat<cutoff]
+        med,std = np.median(filtered),np.std(filtered)
+        ima[np.where((ima-med)>5*std)] = med+5*std
+        ima[np.where((med-ima)>5*std)] = med-5*std
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1], color = 'red')
         ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')

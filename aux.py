@@ -134,7 +134,7 @@ def invert_mask(file,output,axis=None,mask=None):
         N = len(pd_nonmasked.columns)
         val = np.ravel(pd_nonmasked.values)
         val = val[~np.isnan(val)]
-        val[val>0.305] = 0.2
+        val[val>med] = med
         val = np.random.choice(val, size=(M,N))
         random = pd.DataFrame(val, columns=pd_nonmasked.columns, index=pd_nonmasked.index)
         pd_nonmasked.update(random, overwrite = False)
@@ -258,11 +258,9 @@ class image(object):
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
-
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
-        
         #Try to solve
         solved = False
         att = 0
@@ -490,6 +488,7 @@ class image(object):
         #Filter away sources with nearby neighbors
         mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
         w = np.where(self.sources.dist < mindist)
+        filt_index = (self.sources.index)
         if len(w[0]) > 0:
             bad_index = np.unique(np.concatenate([w[0],w[1]]))
             filt_index = np.delete(self.sources.index,bad_index)
@@ -679,7 +678,7 @@ def click_sources(im,target=False):
     med,std = np.median(flat),np.std(flat)
     ima[np.where((ima-med)>3*std)] = med+3*std
     ima[np.where((med-ima)>3*std)] = med-3*std
-    ax.imshow(ima,norm=colors.LogNorm())
+    ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
     ax.scatter(sources.x,sources.y,s=80,facecolors='none',edgecolors='black')
     ax.set_xlim(-1,ima.shape[1])
     ax.set_ylim(-1,ima.shape[0])

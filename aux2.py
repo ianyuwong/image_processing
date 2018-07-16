@@ -19,9 +19,9 @@ from astropy.wcs import WCS
 import scipy.optimize
 from scipy.spatial import distance
 import itertools
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.tri as tri
+import matplotlib
 from matplotlib.patches import Polygon
 from matplotlib.colors import LogNorm
 import matplotlib.colors as colors
@@ -134,7 +134,7 @@ def invert_mask(file,output,axis=None,mask=None):
         N = len(pd_nonmasked.columns)
         val = np.ravel(pd_nonmasked.values)
         val = val[~np.isnan(val)]
-        val[val>med] = med
+        val[val>0.305] = 0.2
         val = np.random.choice(val, size=(M,N))
         random = pd.DataFrame(val, columns=pd_nonmasked.columns, index=pd_nonmasked.index)
         pd_nonmasked.update(random, overwrite = False)
@@ -180,7 +180,6 @@ class image(object):
         self.tolerance = tolerance/100.      #tolerance (in percent)
         self.pxscale = pixelscale     #pixel scale in arcseconds
         self.time = header[TIMElabel]
-        self.sav = 'n'
         if TIMElabel[0:3] == 'MJD':
             self.time = float(self.time)+2400000.5
         self.exptime = header[EXPTIMElabel]
@@ -257,7 +256,7 @@ class image(object):
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
-        
+
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
@@ -274,7 +273,7 @@ class image(object):
                 print "Match found!"
                 solved = True
  
-                #Transform
+                #Transform and save
                 passed = self.transform(order)
                 if not passed:
                     solved = False
@@ -283,11 +282,10 @@ class image(object):
                     #Plot
                     if plotting:
                         self.plotsolution()
-                       
                 #Save
                 if solved:
-                    self.sav = raw_input("Acceptable? (y/n)")
-                    if self.sav == 'y':
+                    sav = raw_input("Acceptable? (y/n)")
+                    if sav == 'y':
                         savepickle(self,self.astrofile)
                     else:
                         solved = False
@@ -489,7 +487,6 @@ class image(object):
         #Filter away sources with nearby neighbors
         mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
         w = np.where(self.sources.dist < mindist)
-        filt_index = (self.sources.index)
         if len(w[0]) > 0:
             bad_index = np.unique(np.concatenate([w[0],w[1]]))
             filt_index = np.delete(self.sources.index,bad_index)
@@ -513,8 +510,6 @@ class image(object):
         ima = copy.deepcopy(flux)
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        pstr = "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+ "   Shift = "+str(round(self.shift,1))+" pixels"
-        plt.figtext(0, 0, pstr, color = 'black')
         flat = np.ndarray.flatten(ima)
         cutoff = np.percentile(flat,85)
         filtered = flat[flat<cutoff]
@@ -529,11 +524,7 @@ class image(object):
         ax.set_ylim(-1,ima.shape[0])
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
-        if self.sav == 'y':
-            self.fig.savefig('png/' +self.filename + 'dude.png' , bbox_inches = 'tight')
-            plt.close(fig)
-        else:
-            plt.show()
+        plt.show()
         
 #==========================================================================
             
@@ -691,12 +682,10 @@ def click_sources(im,target=False):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     flat = np.ndarray.flatten(ima)
-    cutoff = np.percentile(flat,85)
-    filtered = flat[flat<cutoff]
-    med,std = np.median(filtered),np.std(filtered)
-    ima[np.where((ima-med)>5*std)] = med+5*std
-    ima[np.where((med-ima)>5*std)] = med-5*std
-    ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
+    med,std = np.median(flat),np.std(flat)
+    ima[np.where((ima-med)>3*std)] = med+3*std
+    ima[np.where((med-ima)>3*std)] = med-3*std
+    ax.imshow(ima,norm=colors.LogNorm())
     ax.scatter(sources.x,sources.y,s=80,facecolors='none',edgecolors='black')
     ax.set_xlim(-1,ima.shape[1])
     ax.set_ylim(-1,ima.shape[0])
@@ -743,11 +732,8 @@ def click_stars(im,refimage):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection=wcs)
     flat = np.ndarray.flatten(ima)
-    cutoff = np.percentile(flat,85)
-    filtered = flat[flat<cutoff]
-    med,std = np.median(filtered),np.std(filtered)
-    ima[np.where((ima-med)>5*std)] = med+5*std
-    ima[np.where((med-ima)>5*std)] = med-5*std
+    med,std = np.median(flat),np.std(flat)
+    ima[np.where((ima-med)>3*std)] = 3*std
     ax.imshow(ima,origin='lower',norm=colors.LogNorm())
     lon,lat = ax.coords
     lon.set_major_formatter('d.ddd')

@@ -7,6 +7,7 @@ Created on Thu Dec 28 23:19:28 2017
 import pdb
 import os
 import time
+import numpy as np
 
 import aux
 
@@ -55,7 +56,7 @@ def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextra
 
     return refim.starfile
 
-def do_photometry_manual(files,resultsdir,stardir,sourcedir,photometrydir,filters,
+def do_photometry_manual(files,resultsdir,stardir,sourcedir,photometrydir,
                 oldphotometrydir=None,rephot=False,starfile=None,flipxy=False,
                 FILTlabel='FILTER',TIMElabel='JD',OBJlabel='OBJECT'):
     '''
@@ -66,6 +67,7 @@ def do_photometry_manual(files,resultsdir,stardir,sourcedir,photometrydir,filter
 
     nfiles = len(files)
     files = sorted(files)
+    filters = np.array(["g","r","i","z","B","V","R","I"])
 
     #Manually match for reference image (refindex)
     for i,file in enumerate(files):

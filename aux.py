@@ -257,11 +257,11 @@ class image(object):
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
-        
+ 
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
-        
+ 
         #Try to solve
         solved = False
         att = 0
@@ -530,7 +530,7 @@ class image(object):
         ax.set_xlabel('x [px]')
         ax.set_ylabel('y [px]')
         if self.sav == 'y':
-            self.fig.savefig('png/' +self.filename + 'dude.png' , bbox_inches = 'tight')
+            fig.savefig(self.astrofile+'.png' , bbox_inches = 'tight')
             plt.close(fig)
         else:
             plt.show()
@@ -587,6 +587,14 @@ class stars(object):
         imagerr = table[:n,8]
         zmag = table[:n,9]
         zmagerr = table[:n,10]
+        Bmag = gmag+0.3130*(gmag-rmag)+0.2271
+        Bmagerr = np.sqrt(2*gmagerr**2+rmagerr**2)
+        Vmag = gmag-0.5784*(gmag-rmag)-0.0038
+        Vmagerr = np.sqrt(2*gmagerr**2+rmagerr**2)
+        Rmag = rmag-0.2936*(rmag-imag)-0.1439
+        Rmagerr = np.sqrt(2*rmagerr**2+imagerr**2)
+        Imag = imag-0.3780*(imag-zmag)-0.3974
+        Imagerr = np.sqrt(2*imagerr**2+zmagerr**2)
         if flipxy:
             sorting = ra.argsort()
         else:
@@ -602,6 +610,14 @@ class stars(object):
         self.imagerr = imagerr[sorting]
         self.zmag = zmag[sorting]
         self.zmagerr = zmagerr[sorting]
+        self.Bmag = Bmag[sorting]
+        self.Bmagerr = Bmagerr[sorting]
+        self.Vmag = Vmag[sorting]
+        self.Vmagerr = Vmagerr[sorting]
+        self.Rmag = Rmag[sorting]
+        self.Rmagerr = Rmagerr[sorting]
+        self.Imag = Imag[sorting]
+        self.Imagerr = Imagerr[sorting]
         self.index = np.arange(n)
         coords = zip(self.ra,self.dec)
         dist = distance.cdist(coords,coords,'euclidean')*60*60    
@@ -783,8 +799,7 @@ class photometry(object):
             self.time = float(self.time)+2400000.5
         self.flipxy = flipxy
         self.filter = header[FILTlabel]
-
-        self.sources = compilesources(self,0.5/self.pxscale,numb=1000)
+        self.sources = compilesources(self,0.5/self.pxscale,5.0/self.pxscale,numb=1000)
         self.stars = compilestars(self,no_galaxies=True,numb=1000)
 
     def transform(self):
@@ -802,10 +817,13 @@ class photometry(object):
         else:
             starcoords = np.asarray(zip(stars.ra,stars.dec))
         self.calc_points = self.trans.__call__(sourcecoords)
+        plt.plot(self.calc_points[:,0],self.calc_points[:,1],'bo')
+        plt.plot(starcoords[:,0],starcoords[:,1],'r.')
+        plt.show()
         self.match_sources,self.match_stars = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(sources.flux)+self.zpguess-stars.mag[i])
-            w1 = np.where((dist(np.array([starcoords[i,:]]),self.calc_points)/arcsectodeg < 20*self.error) & (dev < 3))
+            w1 = np.where((dist(np.array([starcoords[i,:]]),self.calc_points)/arcsectodeg < 2) & (dev < 3))
             if len(w1[0]) >= 1:
                 dev = abs(-2.5*np.log10(sources.flux[w1])+self.zpguess-stars.mag[i])
                 w2 = np.where(dev == min(dev))
@@ -816,7 +834,11 @@ class photometry(object):
                                      stars.gmag[i],stars.gmagerr[i],
                                      stars.rmag[i],stars.rmagerr[i],
                                      stars.imag[i],stars.imagerr[i],
-                                     stars.zmag[i],stars.zmagerr[i]])
+                                     stars.zmag[i],stars.zmagerr[i],
+                                     stars.Bmag[i],stars.Bmagerr[i],
+                                     stars.Vmag[i],stars.Vmagerr[i],
+                                     stars.Rmag[i],stars.Rmagerr[i],
+                                     stars.Imag[i],stars.Imagerr[i],])
     
     def matching(self):
         '''
@@ -824,12 +846,11 @@ class photometry(object):
         '''
 
         n = len(self.match_sources)
-        matches = np.zeros((n,16))
+        matches = np.zeros((n,24))
         for i in range(n):
             matches[i,0:5] = self.match_sources[i][:]
             matches[i,5:] = self.match_stars[i][:]
         self.matches = matches
-        
 
     def rematching(self,oldphotometrydir,filters,justmatch=False):
         '''
@@ -869,11 +890,11 @@ class photometry(object):
             self.mag = -2.5*np.log10(self.flux)+self.zp
             self.magerr = self.zperr
  
-    def zeropoint(self,filters,justmatch=False):
+    def zeropoint(self,filters):
         '''
         Fit for the zeropoint in each image using the matched sources
         '''
-        if justmatch:
+        if len(self.matches) < 2:
             self.zp,self.zperr = 0,0
             return
 
@@ -884,19 +905,25 @@ class photometry(object):
         catmagerr = self.matches[:,self.filtindex+1]
 
         #Remove bad catalog stars
-        w = np.where(abs(catmagerr) <= 0.1)
+        w = np.where(abs(catmagerr) <= 0.2)
         catmag = catmag[w]
         catmagerr = catmagerr[w]
         immag = immag[w]
 
         #Initial guess and filter
         zpguess1 = catmag[0]-immag[0]
+        if len(catmag) == 1:
+            self.zp,self.zperr = 0,0
+            return
         j = 1
         done = False
         while not done:
             zpguess2 = catmag[j]-immag[j]
             if abs(zpguess1-zpguess2) < 1:
                 done = True
+            elif j == len(catmag)-1:
+                self.zp,self.zperr = 0,0
+                return
             else:
                 j += 1
         zpguess = np.mean([zpguess1,zpguess2])
@@ -953,10 +980,11 @@ class photometry(object):
         seeing = np.median(self.matches[:,4])
         seeingvar = np.std(self.matches[:,4])
         if self.zp == 0:
-            sourcemag = -2.5*np.log10(sources.flux)+self.zpguess
+            self.found=False
+            return
         else:
             sourcemag = -2.5*np.log10(sources.flux)+self.zp
-        w = np.where((abs(sourcera-ra)/arcsectodeg<raerr*3) & (abs(sourcedec-dec)/arcsectodeg<decerr*3) & (abs(sourcemag-mag) < 2))[0]
+        w = np.where((abs(sourcera-ra)/arcsectodeg<raerr) & (abs(sourcedec-dec)/arcsectodeg<decerr) & (abs(sourcemag-mag) < 2))[0]
         if len(w) == 1:
             print "Target found!"
             self.found = True
@@ -967,10 +995,12 @@ class photometry(object):
             self.fwhm = sources.fwhm[w[0]]
             self.mag = -2.5*np.log10(self.flux)+self.zp
             self.magerr = self.zperr
+            pdb.set_trace()
         elif len(w) > 1:
             print "WARNING: multiple possible matches found!"
             fwhm = sources.fwhm[w]
-            w1 = np.where(fwhm>seeing-3*seeingvar)[0]
+            w1 = np.where((fwhm>seeing-3*seeingvar) & (fwhm<seeing+3*seeingvar))[0]
+            pdb.set_trace()
             if len(w1) == 1:
                 self.found = True
                 self.x = sources.x[w[w1[0]]]

@@ -180,8 +180,7 @@ class image(object):
         self.tolerance = tolerance/100.      #tolerance (in percent)
         self.pxscale = pixelscale     #pixel scale in arcseconds
         self.time = header[TIMElabel]
-        sav = 'n'
-        self.sav = sav
+        self.sav = 'n'
         if TIMElabel[0:3] == 'MJD':
             self.time = float(self.time)+2400000.5
         self.exptime = header[EXPTIMElabel]
@@ -258,9 +257,11 @@ class image(object):
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
+        
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
+        
         #Try to solve
         solved = False
         att = 0
@@ -273,7 +274,7 @@ class image(object):
                 print "Match found!"
                 solved = True
  
-                #Transform and save
+                #Transform
                 passed = self.transform(order)
                 if not passed:
                     solved = False
@@ -282,11 +283,11 @@ class image(object):
                     #Plot
                     if plotting:
                         self.plotsolution()
+                       
                 #Save
                 if solved:
                     self.sav = raw_input("Acceptable? (y/n)")
                     if self.sav == 'y':
-                        self.plotsolution()
                         savepickle(self,self.astrofile)
                     else:
                         solved = False
@@ -511,7 +512,6 @@ class image(object):
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)
         fig = plt.figure()
-        self.fig  = fig
         ax = fig.add_subplot(111)
         pstr = "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+ "   Shift = "+str(round(self.shift,1))+" pixels"
         plt.figtext(0, 0, pstr, color = 'black')
@@ -675,9 +675,11 @@ def click_sources(im,target=False):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     flat = np.ndarray.flatten(ima)
-    med,std = np.median(flat),np.std(flat)
-    ima[np.where((ima-med)>3*std)] = med+3*std
-    ima[np.where((med-ima)>3*std)] = med-3*std
+    cutoff = np.percentile(flat,85)
+    filtered = flat[flat<cutoff]
+    med,std = np.median(filtered),np.std(filtered)
+    ima[np.where((ima-med)>5*std)] = med+5*std
+    ima[np.where((med-ima)>5*std)] = med-5*std
     ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
     ax.scatter(sources.x,sources.y,s=80,facecolors='none',edgecolors='black')
     ax.set_xlim(-1,ima.shape[1])
@@ -725,8 +727,11 @@ def click_stars(im,refimage):
     fig = plt.figure()
     ax = fig.add_subplot(111,projection=wcs)
     flat = np.ndarray.flatten(ima)
-    med,std = np.median(flat),np.std(flat)
-    ima[np.where((ima-med)>3*std)] = 3*std
+    cutoff = np.percentile(flat,85)
+    filtered = flat[flat<cutoff]
+    med,std = np.median(filtered),np.std(filtered)
+    ima[np.where((ima-med)>5*std)] = med+5*std
+    ima[np.where((med-ima)>5*std)] = med-5*std
     ax.imshow(ima,origin='lower',norm=colors.LogNorm())
     lon,lat = ax.coords
     lon.set_major_formatter('d.ddd')

@@ -288,6 +288,7 @@ class image(object):
                 if solved:
                     self.sav = raw_input("Acceptable? (y/n)")
                     if self.sav == 'y':
+                        self.plotsolution()
                         savepickle(self,self.astrofile)
                     else:
                         solved = False

@@ -435,6 +435,7 @@ class image(object):
         else:
             starcoords = np.asarray(zip(self.stars.ra,self.stars.dec))
         calc_points = initialtrans.__call__(sourcecoords)
+
         sourceidx,staridx = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(self.sources.flux)+self.zpguess-self.stars.mag[i])

@@ -260,7 +260,7 @@ class image(object):
  
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
-        source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
+        source_triplets = triplets[np.random.choice(np.arange(len(triplets)),120)]
  
         #Try to solve
         solved = False
@@ -360,7 +360,7 @@ class image(object):
                     #Verify
                     candidate = np.array([ww[0][i],ww[1][i],j])
                     verify = self.verify(triplet,candidate)
-                    if np.sum(verify) < 18:
+                    if np.sum(verify) < 10:
                         pass
                     else:
                         return candidate
@@ -466,7 +466,7 @@ class image(object):
                 self.dst = np.asarray(zip(self.stars.dec[staridx],self.stars.ra[staridx]))
             else:
                 self.dst = np.asarray(zip(self.stars.ra[staridx],self.stars.dec[staridx]))
-            self.trans = sk.estimate_transform('polynomial',self.src,self.dst,order=order)
+            self.trans = sk.estimate_transform('polynomial',self.src,self.dst,order=order+1)
 
             #Compute median error in position and shift from predicted pointing
             est = self.trans.__call__(self.src)

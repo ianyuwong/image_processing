@@ -273,7 +273,6 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
- 
                 #Transform
                 passed = self.transform(order)
                 if not passed:
@@ -286,7 +285,8 @@ class image(object):
                        
                 #Save
                 if solved:
-                    self.sav = raw_input("Acceptable? (y/n)")
+                    sav = raw_input("Acceptable? (y/n)")
+                    self.sav = sav
                     if self.sav == 'y':
                         self.plotsolution()
                         savepickle(self,self.astrofile)
@@ -360,7 +360,7 @@ class image(object):
                     #Verify
                     candidate = np.array([ww[0][i],ww[1][i],j])
                     verify = self.verify(triplet,candidate)
-                    if np.sum(verify) < 6:
+                    if np.sum(verify) < 18:
                         pass
                     else:
                         return candidate

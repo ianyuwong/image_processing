@@ -26,7 +26,8 @@ from matplotlib.patches import Polygon
 from matplotlib.colors import LogNorm
 import matplotlib.colors as colors
 import skimage.transform as sk
-from astroquery.jplhorizons import Horizons
+from astroquery.jplhorizons import conf,Horizons
+conf.horizons_server = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi'
 import urllib
 import copy
 

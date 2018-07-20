@@ -590,14 +590,23 @@ class stars(object):
         imagerr = table[:n,8]
         zmag = table[:n,9]
         zmagerr = table[:n,10]
-        Bmag = gmag+0.3130*(gmag-rmag)+0.2271
-        Bmagerr = np.sqrt(2*gmagerr**2+rmagerr**2)
-        Vmag = gmag-0.5784*(gmag-rmag)-0.0038
-        Vmagerr = np.sqrt(2*gmagerr**2+rmagerr**2)
-        Rmag = rmag-0.2936*(rmag-imag)-0.1439
-        Rmagerr = np.sqrt(2*rmagerr**2+imagerr**2)
-        Imag = imag-0.3780*(imag-zmag)-0.3974
-        Imagerr = np.sqrt(2*imagerr**2+zmagerr**2)
+        gr = gmag-rmag
+##        Bmag = gmag+0.213+0.587*gr-0.163
+##        Bmagerr = np.sqrt((1+0.587**2)*gmagerr**2+0.587**2*rmagerr**2)
+##        Vmag = rmag+0.006+0.474*gr-0.044
+##        Vmagerr = np.sqrt(0.474**2*gmagerr**2+(1+0.474**2)*rmagerr**2)
+##        Rmag = rmag-0.138-0.131*gr+0.055
+##        Rmagerr = np.sqrt(0.131**2*gmagerr**2+(1+0.131**2)*rmagerr**2)
+##        Imag = imag-0.367-0.149*gr+0.309
+##        Imagerr = np.sqrt(0.149**2*gmagerr**2+0.149**2*rmagerr**2+imagerr**2)
+        Bmag = gmag+0.194+0.561*gr-0.163
+        Bmagerr = np.sqrt((1+0.561**2)*gmagerr**2+0.561**2*rmagerr**2)
+        Vmag = rmag-0.017+0.492*gr-0.044
+        Vmagerr = np.sqrt(0.492**2*gmagerr**2+(1+0.492**2)*rmagerr**2)
+        Rmag = rmag-0.142-0.166*gr+0.055
+        Rmagerr = np.sqrt(0.166**2*gmagerr**2+(1+0.166**2)*rmagerr**2)
+        Imag = imag-0.376-0.167*gr+0.309
+        Imagerr = np.sqrt(0.167**2*gmagerr**2+0.167**2*rmagerr**2+imagerr**2)
         if flipxy:
             sorting = ra.argsort()
         else:
@@ -821,9 +830,9 @@ class photometry(object):
         else:
             starcoords = np.asarray(zip(stars.ra,stars.dec))
         self.calc_points = self.trans.__call__(sourcecoords)
-        plt.plot(self.calc_points[:,0],self.calc_points[:,1],'bo')
-        plt.plot(starcoords[:,0],starcoords[:,1],'r.')
-        plt.show()
+##        plt.plot(self.calc_points[:,0],self.calc_points[:,1],'bo')
+##        plt.plot(starcoords[:,0],starcoords[:,1],'r.')
+##        plt.show()
         self.match_sources,self.match_stars = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(sources.flux)+self.zpguess-stars.mag[i])
@@ -915,38 +924,20 @@ class photometry(object):
         immag = immag[w]
 
         #Initial guess and filter
-        zpguess1 = catmag[0]-immag[0]
-        if len(catmag) == 1:
+        zps = catmag-immag
+        if len(zps) < 2:
             self.zp,self.zperr = 0,0
             return
-        j = 1
-        done = False
-        while not done:
-            zpguess2 = catmag[j]-immag[j]
-            if abs(zpguess1-zpguess2) < 1:
-                done = True
-            elif j == len(catmag)-1:
-                self.zp,self.zperr = 0,0
-                return
-            else:
-                j += 1
-        zpguess = np.mean([zpguess1,zpguess2])
-        w = np.where(abs(catmag-immag-zpguess) < 1)
+        zpguess = np.median(zps)
+        w = np.where(abs(zps-zpguess) < 0.2)
         catmag = catmag[w]
         catmagerr = catmagerr[w]
         immag = immag[w]
+        if len(catmag) < 2:
+            self.zp,self.zperr = 0,0
+            return
 
-##        #Initial fit
-##        fit,cov = scipy.optimize.curve_fit(fit_intercept,immag,catmag,sigma=catmagerr)
-##        self.zp = fit[0]
-##        self.zperr = np.sqrt(cov[0][0])
-##
-##        #Remove extreme 25-sigma outliers and re-fit
-##        dev = abs((catmag-(self.zp+immag))/catmagerr)
-##        w = np.where(dev <= 25)
-##        catmag = catmag[w]
-##        catmagerr = catmagerr[w]
-##        immag = immag[w]
+        #Fit
         fit,cov = scipy.optimize.curve_fit(fit_intercept,immag,catmag,sigma=catmagerr)
         self.zp = fit[0]
         self.zperr = np.sqrt(cov[0][0])
@@ -999,12 +990,10 @@ class photometry(object):
             self.fwhm = sources.fwhm[w[0]]
             self.mag = -2.5*np.log10(self.flux)+self.zp
             self.magerr = self.zperr
-            pdb.set_trace()
         elif len(w) > 1:
             print "WARNING: multiple possible matches found!"
             fwhm = sources.fwhm[w]
             w1 = np.where((fwhm>seeing-3*seeingvar) & (fwhm<seeing+3*seeingvar))[0]
-            pdb.set_trace()
             if len(w1) == 1:
                 self.found = True
                 self.x = sources.x[w[w1[0]]]

@@ -253,14 +253,14 @@ class image(object):
         '''
         
         #Create ordered source and star lists
-        minfwhm = 0.5/self.pxscale
-        maxfwhm = 5.0/self.pxscale
+        minfwhm = 0.8/self.pxscale
+        maxfwhm = 20.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
  
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
-        source_triplets = triplets[np.random.choice(np.arange(len(triplets)),120)]
+        source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
  
         #Try to solve
         solved = False
@@ -273,6 +273,7 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
+
                 #Transform
                 passed = self.transform(order)
                 if not passed:
@@ -305,7 +306,7 @@ class image(object):
 
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
-        maxfwhm = 5.0/self.pxscale
+        maxfwhm = 7.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,nunmb=num_sources*3)
 
@@ -360,7 +361,7 @@ class image(object):
                     #Verify
                     candidate = np.array([ww[0][i],ww[1][i],j])
                     verify = self.verify(triplet,candidate)
-                    if np.sum(verify) < 10:
+                    if np.sum(verify) < 6:
                         pass
                     else:
                         return candidate
@@ -403,7 +404,7 @@ class image(object):
         #Check predicted pointing
         self.src = np.asarray(zip(sourcex,sourcey))
         self.dst = np.asarray(zip(starx,stary))
-        trans = sk.estimate_transform('polynomial',self.dst,self.src,order=1)
+        trans = sk.estimate_transform('polynomial',self.dst,self.src,order=2)
         if self.flipxy:
             calc_point = trans.__call__(np.array([[self.DEC_image,self.RA_image]]))
         else:
@@ -439,7 +440,7 @@ class image(object):
         sourceidx,staridx = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(self.sources.flux)+self.zpguess-self.stars.mag[i])
-            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 3) & (dev < 3))
+            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 2) & (dev < 3)) # changed from 10 
             if len(w1[0]) >= 1:
                 dev = abs(-2.5*np.log10(self.sources.flux[w1])+self.zpguess-self.stars.mag[i])
                 w2 = np.where(dev == min(dev))
@@ -776,6 +777,7 @@ class photometry(object):
                  FILTlabel='FILTER',TIMElabel='JD',OBJlabel='OBJECT',starfile=None):
             
         self.filename = filename
+        self.shortname = self.filename[self.filename.rfind('/')+1:]
         self.shortname = self.filename[self.filename.rfind('/')+1:]
         self.sourcedir = sourcedir
         self.stardir = stardir

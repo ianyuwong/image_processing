@@ -12,7 +12,7 @@ import numpy as np
 import aux
 
 
-def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextractfile,
+def do_astrometry_manual(files,astrometrydir,stardir,sourcedir,sextractfile,
                         coords=None,refindex=0,flipxy=False,RAlabel='RA',DEClabel='DEC',
                           TIMElabel='JD',FILTlabel='FILTER',OBJlabel='OBJECT',EXPTIMElabel='EXPTIME',
                           pixelscale=None,order=2,tolerance=2,num_sources=30,plotting=False,
@@ -27,7 +27,7 @@ def do_astrometry_manual(files,resultsdir,astrometrydir,stardir,sourcedir,sextra
     for i,fi in enumerate(sorted(files)):
         #Load files into image objects
         print "Working on "+fi+"  "+str(i+1)+"/"+str(nfiles)
-        im = aux.image(fi,resultsdir,astrometrydir,stardir,sourcedir,flipxy,
+        im = aux.image(fi,astrometrydir,stardir,sourcedir,flipxy,
                        RAlabel,DEClabel,TIMElabel,FILTlabel,OBJlabel,EXPTIMElabel,
                        pixelscale=pixelscale)
         

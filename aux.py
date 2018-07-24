@@ -406,7 +406,7 @@ class image(object):
         #Check predicted pointing
         self.src = np.asarray(zip(sourcex,sourcey))
         self.dst = np.asarray(zip(starx,stary))
-        trans = sk.estimate_transform('polynomial',self.dst,self.src,order=2)
+        trans = sk.estimate_transform('polynomial',self.dst,self.src,order=1)
         if self.flipxy:
             calc_point = trans.__call__(np.array([[self.DEC_image,self.RA_image]]))
         else:

@@ -256,7 +256,7 @@ class image(object):
         '''
         
         #Create ordered source and star lists
-        minfwhm = 1.0/self.pxscale
+        minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
@@ -289,8 +289,7 @@ class image(object):
                        
                 #Save
                 if solved:
-                    sav = raw_input("Acceptable? (y/n)")
-                    self.sav = sav
+                    self.sav = raw_input("Acceptable? (y/n)")
                     if self.sav == 'y':
                         self.plotsolution()
                         savepickle(self,self.astrofile)
@@ -309,7 +308,7 @@ class image(object):
 
         #Create ordered source and star lists
         minfwhm = 0.5/self.pxscale
-        maxfwhm = 7.0/self.pxscale
+        maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,nunmb=num_sources*3)
 
@@ -337,8 +336,8 @@ class image(object):
 
         #Save
         if done:
-            sav = raw_input("Acceptable? (y/n)")
-            if sav == 'y':
+            self.sav = raw_input("Acceptable? (y/n)")
+            if self.sav == 'y':
                 savepickle(self,self.astrofile)
             
     def findmatch(self,triplet,sourcedist,stardist):
@@ -443,7 +442,7 @@ class image(object):
         sourceidx,staridx = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(self.sources.flux)+self.zpguess-self.stars.mag[i])
-            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 12) & (dev < 3)) # changed from 10 
+            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 3) & (dev < 3)) 
             if len(w1[0]) >= 1:
                 dev = abs(-2.5*np.log10(self.sources.flux[w1])+self.zpguess-self.stars.mag[i])
                 w2 = np.where(dev == min(dev))
@@ -466,7 +465,7 @@ class image(object):
                 self.dst = np.asarray(zip(self.stars.dec[staridx],self.stars.ra[staridx]))
             else:
                 self.dst = np.asarray(zip(self.stars.ra[staridx],self.stars.dec[staridx]))
-            self.trans = sk.estimate_transform('polynomial',self.src,self.dst,order=order+1)
+            self.trans = sk.estimate_transform('polynomial',self.src,self.dst,order=order)
 
             #Compute median error in position and shift from predicted pointing
             est = self.trans.__call__(self.src)
@@ -594,22 +593,22 @@ class stars(object):
         zmag = table[:n,9]
         zmagerr = table[:n,10]
         gr = gmag-rmag
-##        Bmag = gmag+0.213+0.587*gr-0.163
-##        Bmagerr = np.sqrt((1+0.587**2)*gmagerr**2+0.587**2*rmagerr**2)
-##        Vmag = rmag+0.006+0.474*gr-0.044
-##        Vmagerr = np.sqrt(0.474**2*gmagerr**2+(1+0.474**2)*rmagerr**2)
-##        Rmag = rmag-0.138-0.131*gr+0.055
-##        Rmagerr = np.sqrt(0.131**2*gmagerr**2+(1+0.131**2)*rmagerr**2)
-##        Imag = imag-0.367-0.149*gr+0.309
-##        Imagerr = np.sqrt(0.149**2*gmagerr**2+0.149**2*rmagerr**2+imagerr**2)
-        Bmag = gmag+0.194+0.561*gr-0.163
-        Bmagerr = np.sqrt((1+0.561**2)*gmagerr**2+0.561**2*rmagerr**2)
-        Vmag = rmag-0.017+0.492*gr-0.044
-        Vmagerr = np.sqrt(0.492**2*gmagerr**2+(1+0.492**2)*rmagerr**2)
-        Rmag = rmag-0.142-0.166*gr+0.055
-        Rmagerr = np.sqrt(0.166**2*gmagerr**2+(1+0.166**2)*rmagerr**2)
-        Imag = imag-0.376-0.167*gr+0.309
-        Imagerr = np.sqrt(0.167**2*gmagerr**2+0.167**2*rmagerr**2+imagerr**2)
+        Bmag = gmag+0.213+0.587*gr-0.163
+        Bmagerr = np.sqrt((1+0.587**2)*gmagerr**2+0.587**2*rmagerr**2)
+        Vmag = rmag+0.006+0.474*gr-0.044
+        Vmagerr = np.sqrt(0.474**2*gmagerr**2+(1+0.474**2)*rmagerr**2)
+        Rmag = rmag-0.138-0.131*gr+0.055
+        Rmagerr = np.sqrt(0.131**2*gmagerr**2+(1+0.131**2)*rmagerr**2)
+        Imag = imag-0.367-0.149*gr+0.309
+        Imagerr = np.sqrt(0.149**2*gmagerr**2+0.149**2*rmagerr**2+imagerr**2)
+##        Bmag = gmag+0.194+0.561*gr-0.163
+##        Bmagerr = np.sqrt((1+0.561**2)*gmagerr**2+0.561**2*rmagerr**2)
+##        Vmag = rmag-0.017+0.492*gr-0.044
+##        Vmagerr = np.sqrt(0.492**2*gmagerr**2+(1+0.492**2)*rmagerr**2)
+##        Rmag = rmag-0.142-0.166*gr+0.055
+##        Rmagerr = np.sqrt(0.166**2*gmagerr**2+(1+0.166**2)*rmagerr**2)
+##        Imag = imag-0.376-0.167*gr+0.309
+##        Imagerr = np.sqrt(0.167**2*gmagerr**2+0.167**2*rmagerr**2+imagerr**2)
         if flipxy:
             sorting = ra.argsort()
         else:
@@ -969,8 +968,9 @@ class photometry(object):
 
         #Execute query and retrieve position information
         eph = Horizons(id=self.object,epochs=self.time).ephemerides()
-        ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],21.22 #eph['V'][0]
-        #Find matching source (within 9 sigma)
+        ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['V'][0]
+        
+        #Find matching source
         self.error = 2
         sources = self.sources
         if self.flipxy:
@@ -1000,9 +1000,8 @@ class photometry(object):
                 self.fwhm = sources.fwhm[w[0]]
                 self.mag = -2.5*np.log10(self.flux)+self.zp
                 self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
-                pdb.set_trace()
-                print(self.x)
-                print(self.y)
+                print self.x
+                print self.y
             else:
                 self.found = False
         elif len(w) > 1:
@@ -1023,14 +1022,13 @@ class photometry(object):
                     self.fwhm = sources.fwhm[w[w1[0]]]
                     self.mag = -2.5*np.log10(self.flux)+self.zp
                     self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
-                    print(self.x)
-                    print(self.y)
+                    print self.x
+                    print self.y
 
                 else:
                     self.found = False
-                    print('false')
             else:
                 self.found = False
         else:
             self.found = False
-            print('all_false')
+            print "No possible matches found!"

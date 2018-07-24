@@ -8,6 +8,8 @@ from __future__ import division
 import os
 import sys
 
+from astroquery.jplhorizons import conf
+conf.horizons_server = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi'
 import numpy as np
 import numpy.ma as ma
 import astropy.io.fits as fits
@@ -88,6 +90,7 @@ def makebiasflat(files,imtype='flat',bias=None):
 
     if imtype == 'flat':
         out = (out-bias)
+        out = out/np.median(out)
 
     return out
 
@@ -274,7 +277,7 @@ class image(object):
             else:
                 print "Match found!"
                 solved = True
- 
+
                 #Transform
                 passed = self.transform(order)
                 if not passed:
@@ -289,6 +292,7 @@ class image(object):
                 if solved:
                     self.sav = raw_input("Acceptable? (y/n)")
                     if self.sav == 'y':
+                        self.plotsolution()
                         savepickle(self,self.astrofile)
                     else:
                         solved = False
@@ -333,8 +337,8 @@ class image(object):
 
         #Save
         if done:
-            sav = raw_input("Acceptable? (y/n)")
-            if sav == 'y':
+            self.sav = raw_input("Acceptable? (y/n)")
+            if self.sav == 'y':
                 savepickle(self,self.astrofile)
             
     def findmatch(self,triplet,sourcedist,stardist):
@@ -435,10 +439,11 @@ class image(object):
         else:
             starcoords = np.asarray(zip(self.stars.ra,self.stars.dec))
         calc_points = initialtrans.__call__(sourcecoords)
+
         sourceidx,staridx = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(self.sources.flux)+self.zpguess-self.stars.mag[i])
-            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 3) & (dev < 3))
+            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 3) & (dev < 3)) 
             if len(w1[0]) >= 1:
                 dev = abs(-2.5*np.log10(self.sources.flux[w1])+self.zpguess-self.stars.mag[i])
                 w2 = np.where(dev == min(dev))
@@ -589,22 +594,22 @@ class stars(object):
         zmag = table[:n,9]
         zmagerr = table[:n,10]
         gr = gmag-rmag
-##        Bmag = gmag+0.213+0.587*gr-0.163
-##        Bmagerr = np.sqrt((1+0.587**2)*gmagerr**2+0.587**2*rmagerr**2)
-##        Vmag = rmag+0.006+0.474*gr-0.044
-##        Vmagerr = np.sqrt(0.474**2*gmagerr**2+(1+0.474**2)*rmagerr**2)
-##        Rmag = rmag-0.138-0.131*gr+0.055
-##        Rmagerr = np.sqrt(0.131**2*gmagerr**2+(1+0.131**2)*rmagerr**2)
-##        Imag = imag-0.367-0.149*gr+0.309
-##        Imagerr = np.sqrt(0.149**2*gmagerr**2+0.149**2*rmagerr**2+imagerr**2)
-        Bmag = gmag+0.194+0.561*gr-0.163
-        Bmagerr = np.sqrt((1+0.561**2)*gmagerr**2+0.561**2*rmagerr**2)
-        Vmag = rmag-0.017+0.492*gr-0.044
-        Vmagerr = np.sqrt(0.492**2*gmagerr**2+(1+0.492**2)*rmagerr**2)
-        Rmag = rmag-0.142-0.166*gr+0.055
-        Rmagerr = np.sqrt(0.166**2*gmagerr**2+(1+0.166**2)*rmagerr**2)
-        Imag = imag-0.376-0.167*gr+0.309
-        Imagerr = np.sqrt(0.167**2*gmagerr**2+0.167**2*rmagerr**2+imagerr**2)
+        Bmag = gmag+0.213+0.587*gr-0.163
+        Bmagerr = np.sqrt((1+0.587**2)*gmagerr**2+0.587**2*rmagerr**2)
+        Vmag = rmag+0.006+0.474*gr-0.044
+        Vmagerr = np.sqrt(0.474**2*gmagerr**2+(1+0.474**2)*rmagerr**2)
+        Rmag = rmag-0.138-0.131*gr+0.055
+        Rmagerr = np.sqrt(0.131**2*gmagerr**2+(1+0.131**2)*rmagerr**2)
+        Imag = imag-0.367-0.149*gr+0.309
+        Imagerr = np.sqrt(0.149**2*gmagerr**2+0.149**2*rmagerr**2+imagerr**2)
+##        Bmag = gmag+0.194+0.561*gr-0.163
+##        Bmagerr = np.sqrt((1+0.561**2)*gmagerr**2+0.561**2*rmagerr**2)
+##        Vmag = rmag-0.017+0.492*gr-0.044
+##        Vmagerr = np.sqrt(0.492**2*gmagerr**2+(1+0.492**2)*rmagerr**2)
+##        Rmag = rmag-0.142-0.166*gr+0.055
+##        Rmagerr = np.sqrt(0.166**2*gmagerr**2+(1+0.166**2)*rmagerr**2)
+##        Imag = imag-0.376-0.167*gr+0.309
+##        Imagerr = np.sqrt(0.167**2*gmagerr**2+0.167**2*rmagerr**2+imagerr**2)
         if flipxy:
             sorting = ra.argsort()
         else:
@@ -785,6 +790,7 @@ class photometry(object):
             
         self.filename = filename
         self.shortname = self.filename[self.filename.rfind('/')+1:]
+        self.shortname = self.filename[self.filename.rfind('/')+1:]
         self.sourcedir = sourcedir
         self.stardir = stardir
         self.sourcefile = self.sourcedir+self.shortname+'.cat'
@@ -964,11 +970,16 @@ class photometry(object):
         #Execute query and retrieve position information
         eph = Horizons(id=self.object,epochs=self.time).ephemerides()
         ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['V'][0]
-
-        #Find matching source (within 9 sigma)
+        
+        #Find matching source
+        self.error = 2
         sources = self.sources
-        sourcera = self.calc_points[:,0]
-        sourcedec = self.calc_points[:,1]
+        if self.flipxy:
+            sourcera = self.calc_points[:,1]
+            sourcedec = self.calc_points[:,0]
+        else:
+            sourcera = self.calc_points[:,0]
+            sourcedec = self.calc_points[:,1]
         seeing = np.median(self.matches[:,4])
         seeingvar = np.std(self.matches[:,4])
         if self.zp == 0:
@@ -976,31 +987,49 @@ class photometry(object):
             return
         else:
             sourcemag = -2.5*np.log10(sources.flux)+self.zp
-        w = np.where((abs(sourcera-ra)/arcsectodeg<raerr) & (abs(sourcedec-dec)/arcsectodeg<decerr) & (abs(sourcemag-mag) < 2))[0]
+        w = np.where((abs(sourcera-ra)/arcsectodeg<np.sqrt(raerr**2+(self.error)**2)) & 
+            (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+(self.error)**2)) & (abs(sourcemag-mag) < 3))[0]
         if len(w) == 1:
-            print "Target found!"
-            self.found = True
-            self.x = sources.x[w[0]]
-            self.y = sources.y[w[0]]
-            self.flux = sources.flux[w[0]]
-            self.fluxerr = sources.fluxerr[w[0]]
-            self.fwhm = sources.fwhm[w[0]]
-            self.mag = -2.5*np.log10(self.flux)+self.zp
-            self.magerr = self.zperr
-        elif len(w) > 1:
-            print "WARNING: multiple possible matches found!"
-            fwhm = sources.fwhm[w]
-            w1 = np.where((fwhm>seeing-3*seeingvar) & (fwhm<seeing+3*seeingvar))[0]
-            if len(w1) == 1:
+            print("Target found!")
+            checkTF = raw_input("Acceptable? (y/n)")
+            if checkTF == 'y':
                 self.found = True
-                self.x = sources.x[w[w1[0]]]
-                self.y = sources.y[w[w1[0]]]
-                self.flux = sources.flux[w[w1[0]]]
-                self.fluxerr = sources.fluxerr[w[w1[0]]]
-                self.fwhm = sources.fwhm[w[w1[0]]]
+                self.x = sources.x[w[0]]
+                self.y = sources.y[w[0]]
+                self.flux = sources.flux[w[0]]
+                self.fluxerr = sources.fluxerr[w[0]]
+                self.fwhm = sources.fwhm[w[0]]
                 self.mag = -2.5*np.log10(self.flux)+self.zp
-                self.magerr = self.zperr
+                self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+                print self.x
+                print self.y
+            else:
+                self.found = False
+        elif len(w) > 1:
+            print ("WARNING: multiple possible matches found!")
+            fwhm = sources.fwhm[w]
+            w1 = np.where((fwhm>seeing-seeingvar) & (fwhm<seeing+seeingvar))[0]
+            plt.scatter(sources.x[w[w1]],sources.y[w[w1]])
+            plt.show()
+            checkTF = raw_input("Acceptable? (y/n)")
+            if checkTF == 'y':
+                if len(w1) == 1:
+                    print("Target found!")
+                    self.found = True
+                    self.x = sources.x[w[w1[0]]]
+                    self.y = sources.y[w[w1[0]]]
+                    self.flux = sources.flux[w[w1[0]]]
+                    self.fluxerr = sources.fluxerr[w[w1[0]]]
+                    self.fwhm = sources.fwhm[w[w1[0]]]
+                    self.mag = -2.5*np.log10(self.flux)+self.zp
+                    self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+                    print self.x
+                    print self.y
+
+                else:
+                    self.found = False
             else:
                 self.found = False
         else:
             self.found = False
+            print "No possible matches found!"

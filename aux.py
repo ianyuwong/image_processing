@@ -8,6 +8,8 @@ from __future__ import division
 import os
 import sys
 
+from astroquery.jplhorizons import conf
+conf.horizons_server = 'https://ssd.jpl.nasa.gov/horizons_batch.cgi'
 import numpy as np
 import numpy.ma as ma
 import astropy.io.fits as fits
@@ -87,6 +89,7 @@ def makebiasflat(files,imtype='flat',bias=None):
 
     if imtype == 'flat':
         out = (out-bias)
+        out = out/np.median(out)
 
     return out
 
@@ -253,8 +256,8 @@ class image(object):
         '''
         
         #Create ordered source and star lists
-        minfwhm = 0.8/self.pxscale
-        maxfwhm = 20.0/self.pxscale
+        minfwhm = 1.0/self.pxscale
+        maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
         self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
  
@@ -440,7 +443,7 @@ class image(object):
         sourceidx,staridx = [],[]
         for i in range(len(starcoords)):
             dev = abs(-2.5*np.log10(self.sources.flux)+self.zpguess-self.stars.mag[i])
-            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 2) & (dev < 3)) # changed from 10 
+            w1 = np.where((dist(np.array([starcoords[i,:]]),calc_points)/arcsectodeg < 12) & (dev < 3)) # changed from 10 
             if len(w1[0]) >= 1:
                 dev = abs(-2.5*np.log10(self.sources.flux[w1])+self.zpguess-self.stars.mag[i])
                 w2 = np.where(dev == min(dev))
@@ -966,12 +969,16 @@ class photometry(object):
 
         #Execute query and retrieve position information
         eph = Horizons(id=self.object,epochs=self.time).ephemerides()
-        ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['V'][0]
-
+        ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],21.22 #eph['V'][0]
         #Find matching source (within 9 sigma)
+        self.error = 2
         sources = self.sources
-        sourcera = self.calc_points[:,0]
-        sourcedec = self.calc_points[:,1]
+        if self.flipxy:
+            sourcera = self.calc_points[:,1]
+            sourcedec = self.calc_points[:,0]
+        else:
+            sourcera = self.calc_points[:,0]
+            sourcedec = self.calc_points[:,1]
         seeing = np.median(self.matches[:,4])
         seeingvar = np.std(self.matches[:,4])
         if self.zp == 0:
@@ -979,31 +986,51 @@ class photometry(object):
             return
         else:
             sourcemag = -2.5*np.log10(sources.flux)+self.zp
-        w = np.where((abs(sourcera-ra)/arcsectodeg<raerr) & (abs(sourcedec-dec)/arcsectodeg<decerr) & (abs(sourcemag-mag) < 2))[0]
+        w = np.where((abs(sourcera-ra)/arcsectodeg<np.sqrt(raerr**2+(self.error)**2)) & 
+            (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+(self.error)**2)) & (abs(sourcemag-mag) < 3))[0]
         if len(w) == 1:
-            print "Target found!"
-            self.found = True
-            self.x = sources.x[w[0]]
-            self.y = sources.y[w[0]]
-            self.flux = sources.flux[w[0]]
-            self.fluxerr = sources.fluxerr[w[0]]
-            self.fwhm = sources.fwhm[w[0]]
-            self.mag = -2.5*np.log10(self.flux)+self.zp
-            self.magerr = self.zperr
-        elif len(w) > 1:
-            print "WARNING: multiple possible matches found!"
-            fwhm = sources.fwhm[w]
-            w1 = np.where((fwhm>seeing-3*seeingvar) & (fwhm<seeing+3*seeingvar))[0]
-            if len(w1) == 1:
+            print("Target found!")
+            checkTF = raw_input("Acceptable? (y/n)")
+            if checkTF == 'y':
                 self.found = True
-                self.x = sources.x[w[w1[0]]]
-                self.y = sources.y[w[w1[0]]]
-                self.flux = sources.flux[w[w1[0]]]
-                self.fluxerr = sources.fluxerr[w[w1[0]]]
-                self.fwhm = sources.fwhm[w[w1[0]]]
+                self.x = sources.x[w[0]]
+                self.y = sources.y[w[0]]
+                self.flux = sources.flux[w[0]]
+                self.fluxerr = sources.fluxerr[w[0]]
+                self.fwhm = sources.fwhm[w[0]]
                 self.mag = -2.5*np.log10(self.flux)+self.zp
-                self.magerr = self.zperr
+                self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+                pdb.set_trace()
+                print(self.x)
+                print(self.y)
+            else:
+                self.found = False
+        elif len(w) > 1:
+            print ("WARNING: multiple possible matches found!")
+            fwhm = sources.fwhm[w]
+            w1 = np.where((fwhm>seeing-seeingvar) & (fwhm<seeing+seeingvar))[0]
+            plt.scatter(sources.x[w[w1]],sources.y[w[w1]])
+            plt.show()
+            checkTF = raw_input("Acceptable? (y/n)")
+            if checkTF == 'y':
+                if len(w1) == 1:
+                    print("Target found!")
+                    self.found = True
+                    self.x = sources.x[w[w1[0]]]
+                    self.y = sources.y[w[w1[0]]]
+                    self.flux = sources.flux[w[w1[0]]]
+                    self.fluxerr = sources.fluxerr[w[w1[0]]]
+                    self.fwhm = sources.fwhm[w[w1[0]]]
+                    self.mag = -2.5*np.log10(self.flux)+self.zp
+                    self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+                    print(self.x)
+                    print(self.y)
+
+                else:
+                    self.found = False
+                    print('false')
             else:
                 self.found = False
         else:
             self.found = False
+            print('all_false')

@@ -103,7 +103,7 @@ def flatten(files,filters,flats,bias,flatdir,FILTlabel='FILTER'):
         filt = hdulist[0].header[FILTlabel]
         biascorr = (hdulist[0].data-bias)
         w = np.where(filters == filt)
-        flatimage = biascorr/flats[w][0]
+        flatimage = biascorr/flats[w]
         filename = files[i][files[i].rfind('/')+1:]
         hdu = fits.PrimaryHDU(flatimage,header=hdulist[0].header)
         hdu.writeto(flatdir+'f'+filename,clobber=True)
@@ -124,15 +124,15 @@ def invert_mask(file,output,axis=None,mask=None):
             im = im[::-1,::-1]
     if mask != None:
         flat = np.ndarray.flatten(im)
-        cutoff = np.percentile(flat,85)
-        filtered = flat[flat<cutoff]
-        med,std = np.median(filtered),np.std(filtered)
+        cutoff = np.nanpercentile(flat,85)
+        filtered = flat[((flat<cutoff)&(flat>0))]
+        med,std = np.nanmedian(filtered),np.nanstd(filtered)
         x1,x2,y1,y2 = mask
         masked = im[y1:y2,x1:x2]
         mask = np.random.normal(loc=med,scale=std,size=np.shape(masked))
-        im[y1:y2,x1:x2] = med
+        im[y1:y2,x1:x2] = mask
         
-    hdu = fits.PrimaryHDU(np_final,header=hdulist[0].header)
+    hdu = fits.PrimaryHDU(im,header=hdulist[0].header)
     hdu.writeto(output,clobber=True)
                 
 def fit_intercept(x,b):
@@ -207,7 +207,7 @@ class image(object):
         else:
             RA = self.RA_image-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = self.DEC_image+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = 1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg      
+        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.1)     
               
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)
@@ -232,7 +232,7 @@ class image(object):
         else:
             RA = coord.ra.degree-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = coord.dec.degree+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = 1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg
+        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.1)
 
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)
@@ -249,10 +249,11 @@ class image(object):
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
-        self.stars = compilestars(self,no_galaxies=False,numb=num_sources*3)
- 
+        self.stars = compilestars(self,no_galaxies=False,numb=num_sources*5)
+
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
+        #source_triplets = triplets
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
  
         #Try to solve
@@ -260,34 +261,38 @@ class image(object):
         att = 0
         while not solved and att < len(source_triplets):
             #Look for matching star triplets
-            result = self.findmatch(source_triplets[att],self.sources.dist,self.stars.dist)
+            result = self.findmatch(source_triplets[att],self.sources.dist,self.stars.dist,order)
             if result is False:
                 att += 1
             else:
-                print "Match found!"
+                self.plotsolution()
+                savepickle(self,self.astrofile)
                 solved = True
-
-                #Transform
-                passed = self.transform(order)
-                if not passed:
-                    solved = False
-                    att += 1
-                else:
-                    #Plot
-                    if plotting:
-                        self.plotsolution()
-                       
-                #Save
-                if solved:
-                    self.sav = raw_input("Acceptable? (y/n)")
-                    if self.sav == 'y':
-                        self.plotsolution()
-                        savepickle(self,self.astrofile)
-                    else:
-                        solved = False
-                        att += 1
         
         return solved
+
+    def check_candidate(self,order):
+        '''
+        Transform the candidate match and see if the solution is acceptible
+        '''
+        
+        #Transform
+        iter=0
+        passed = self.transform(order,iter)
+        if not passed:
+            return False
+        else:
+            print "Match found!"
+            passed = self.transform(order,1)
+            passed = self.transform(order,2)
+            #Plot
+            self.plotsolution()
+                       
+            self.sav = raw_input("Acceptable? (y/n)")
+            if self.sav == 'y':
+                return True
+            else:
+                return False
 
     def solveastro_manual(self,order,plotting,reffile,num_sources=30):
         '''
@@ -330,7 +335,7 @@ class image(object):
             if self.sav == 'y':
                 savepickle(self,self.astrofile)
             
-    def findmatch(self,triplet,sourcedist,stardist):
+    def findmatch(self,triplet,sourcedist,stardist,order):
         '''
         Look for a matching star triplet given a source triplet
         '''
@@ -343,20 +348,28 @@ class image(object):
             return False
  
         #Look for other two pair matches
-        for i in range(len(ww[0])):
+        i = 0
+        while i < len(ww[0]):
             w1 = np.where(abs(stardist[ww[0][i],:]-sourcedist[a,c])/sourcedist[a,c] < self.tolerance)
             w2 = np.where(abs(stardist[ww[1][i],:]-sourcedist[b,c])/sourcedist[b,c] < self.tolerance)
             if len(w1) < 1 or len(w2) < 1 or len(np.intersect1d(w1,w2)) < 1:
-                pass
+                i += 1
             else:
-                for j in np.intersect1d(w1,w2):
+                inter = np.intersect1d(w1,w2)
+                j = 0
+                while j < len(inter):
                     #Verify
-                    candidate = np.array([ww[0][i],ww[1][i],j])
+                    candidate = np.array([ww[0][i],ww[1][i],inter[j]])
                     verify = self.verify(triplet,candidate)
                     if np.sum(verify) < 6:
-                        pass
+                        j += 1
                     else:
-                        return candidate
+                        checked = self.check_candidate(order)
+                        if checked:
+                            return True
+                        else:
+                            j += 1
+                i += 1
                 
         return False
             
@@ -401,7 +414,7 @@ class image(object):
             calc_point = trans.__call__(np.array([[self.DEC_image,self.RA_image]]))
         else:
             calc_point = trans.__call__(np.array([[self.RA_image,self.DEC_image]]))
-        error_tol = 0.2*max(self.nx,self.ny)
+        error_tol = 0.3*max(self.nx,self.ny)
         shift = dist(calc_point,np.array([[self.pointx,self.pointy]]))
         check5 = shift < error_tol
 
@@ -412,14 +425,18 @@ class image(object):
 
         return np.array([check1,check2,check3,check4,check5,check6])
         
-    def transform(self,order):
+    def transform(self,order,iter):
         '''
         Calculate transformation from X,Y to RA,DEC starting from matched triplet
         '''
         
         #Initial linear transformation based on initial matches
-        self.rlsrc = self.src
-        initialtrans = sk.estimate_transform('polynomial',self.src,self.dst,order=1)
+ 
+        if iter == 0:
+            self.rlsrc = self.src
+            initialtrans = sk.estimate_transform('polynomial',self.src,self.dst,order=1)
+        else:
+            initialtrans = sk.estimate_transform('polynomial',self.src,self.dst,order=order)
         
         #Look for more matches (based on both distance and brightness)
         sourcecoords = np.asarray(zip(self.sources.x,self.sources.y))
@@ -441,7 +458,7 @@ class image(object):
                     staridx.append(i)
             
         if len(sourceidx)<max((order+1)*(order+2)/2+1,5):
-            print "Few matching stars. Trying to re-solve astrometry..."
+            #print "Few matching stars. Trying to re-solve astrometry..."
             return False
         else:
 ##            #Bump up order if there are many matched sources
@@ -457,6 +474,7 @@ class image(object):
             else:
                 self.dst = np.asarray(zip(self.stars.ra[staridx],self.stars.dec[staridx]))
             self.trans = sk.estimate_transform('polynomial',self.src,self.dst,order=order)
+            self.revtrans = sk.estimate_transform('polynomial',self.dst,self.src,order=order)
 
             #Compute median error in position and shift from predicted pointing
             est = self.trans.__call__(self.src)
@@ -483,7 +501,8 @@ class image(object):
 ##        triplets = np.asarray(list(itertools.combinations(self.sources.index,3)))
 
         #Filter away sources with nearby neighbors
-        mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
+#        mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
+        mindist = 3
         w = np.where(self.sources.dist < mindist)
         filt_index = (self.sources.index)
         if len(w[0]) > 0:
@@ -491,19 +510,21 @@ class image(object):
             filt_index = np.delete(self.sources.index,bad_index)
         triplets = np.asarray(list(itertools.combinations(filt_index,3)))
 
-        #Ensure wide coverage in x and y
-        indrange = max(filt_index)-min(filt_index)
-        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
-        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>indrange/2)
-                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>indrange/2))
-        triplets = triplets[w]
+##        #Ensure wide coverage in x and y
+##        indrange = max(filt_index)-min(filt_index)
+##        xorder = np.array([[np.where(self.sources.x.argsort() == i)[0][0] for i in j] for j in triplets])
+##        w = np.where(((np.max(triplets,axis=1)-np.min(triplets,axis=1))>indrange/2)
+##                     &((np.max(xorder,axis=1)-np.min(xorder,axis=1))>indrange/2))
+##        triplets = triplets[w]
 
         return triplets
         
     def plotsolution(self):
         '''
         Comparison plot of sources and stars with matched triplet marked
+
         '''
+
         hdulist = fits.open(self.filename)
         flux = hdulist[0].data
         ima = copy.deepcopy(flux)
@@ -518,8 +539,11 @@ class image(object):
         ima[np.where((ima-med)>5*std)] = med+5*std
         ima[np.where((med-ima)>5*std)] = med-5*std
         plt.triplot(self.rlsrc[:,0], self.rlsrc[:,1], color = 'red')
-        ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
+        ax.imshow(ima,norm=colors.LogNorm() )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
+        for i in range(len(self.stars.ra)):
+            calc_point=self.revtrans.__call__(np.array([[self.stars.dec[i],self.stars.ra[i]]]))
+            ax.scatter(calc_point[0][0],calc_point[0][1],s=110,facecolors='none',edgecolors='green')       
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')
         ax.set_xlim(-1,ima.shape[1])
         ax.set_ylim(-1,ima.shape[0])
@@ -584,13 +608,13 @@ class stars(object):
         zmag = table[:n,9]
         zmagerr = table[:n,10]
         gr = gmag-rmag
-        Bmag = gmag+0.213+0.587*gr-0.163
+        Bmag = gmag+0.213+0.587*gr
         Bmagerr = np.sqrt((1+0.587**2)*gmagerr**2+0.587**2*rmagerr**2)
-        Vmag = rmag+0.006+0.474*gr-0.044
+        Vmag = rmag+0.006+0.474*gr
         Vmagerr = np.sqrt(0.474**2*gmagerr**2+(1+0.474**2)*rmagerr**2)
-        Rmag = rmag-0.138-0.131*gr+0.055
+        Rmag = rmag-0.138-0.131*gr
         Rmagerr = np.sqrt(0.131**2*gmagerr**2+(1+0.131**2)*rmagerr**2)
-        Imag = imag-0.367-0.149*gr+0.309
+        Imag = imag-0.367-0.149*gr
         Imagerr = np.sqrt(0.149**2*gmagerr**2+0.149**2*rmagerr**2+imagerr**2)
 ##        Bmag = gmag+0.194+0.561*gr-0.163
 ##        Bmagerr = np.sqrt((1+0.561**2)*gmagerr**2+0.561**2*rmagerr**2)
@@ -701,7 +725,7 @@ def click_sources(im,target=False):
     med,std = np.median(filtered),np.std(filtered)
     ima[np.where((ima-med)>5*std)] = med+5*std
     ima[np.where((med-ima)>5*std)] = med-5*std
-    ax.imshow(ima,norm=colors.LogNorm(), cmap = plt.get_cmap('binary') )
+    ax.imshow(ima,norm=colors.LogNorm())
     ax.scatter(sources.x,sources.y,s=80,facecolors='none',edgecolors='black')
     ax.set_xlim(-1,ima.shape[1])
     ax.set_ylim(-1,ima.shape[0])
@@ -791,6 +815,7 @@ class photometry(object):
         self.zpguess = astro.zpguess
         self.pxscale = astro.pxscale
         self.trans = astro.trans
+        self.revtrans = astro.revtrans
         if starfile != None:
             self.starfile = starfile
         else:
@@ -805,7 +830,7 @@ class photometry(object):
             self.time = float(self.time)+2400000.5
         self.flipxy = flipxy
         self.filter = header[FILTlabel]
-        self.sources = compilesources(self,0.5/self.pxscale,5.0/self.pxscale,numb=1000)
+        self.sources = compilesources(self,0.5/self.pxscale,5.0/self.pxscale,numb=50000)
         self.stars = compilestars(self,no_galaxies=True,numb=1000)
 
     def transform(self):
@@ -870,7 +895,7 @@ class photometry(object):
         olddata = loadpickle(oldphotometrydir+self.shortname+'.phot')
         oldmatches = olddata.matches
         n = len(oldmatches)
-        matches = np.zeros((n,16))
+        matches = np.zeros((n,24))
         for i in range(n):
             oldx,oldy,oldflux = oldmatches[i,0:3]
             w1 = np.where((abs(sources.x-oldx)<10) & (abs(sources.y-oldy)<10))
@@ -883,18 +908,24 @@ class photometry(object):
         matches = matches[w,:]
         self.matches = matches
 
-        self.zeropoint(filters,justmatch=justmatch)
+        self.zeropoint(filters)
 
-        w = np.where((abs(sources.x-olddata.x)<5) & (abs(sources.y-olddata.y)<5) & (0.2<sources.flux/olddata.flux) & (sources.flux/olddata.flux<5))[0]
-        if len(w) == 1:
-            self.found = True
-            self.x = sources.x[w[0]]
-            self.y = sources.y[w[0]]
-            self.flux = sources.flux[w[0]]
-            self.fluxerr = sources.fluxerr[w[0]]
-            self.fwhm = sources.fwhm[w[0]]
-            self.mag = -2.5*np.log10(self.flux)+self.zp
-            self.magerr = self.zperr
+        if olddata.found:
+            ww = np.where((abs(sources.x-olddata.x)<5) & (abs(sources.y-olddata.y)<5) & (sources.flux/olddata.flux>0.2) & (sources.flux/olddata.flux<5))[0]
+            if len(ww) == 1:
+                self.found = True
+                self.x = sources.x[ww[0]]
+                self.y = sources.y[ww[0]]
+                self.flux = sources.flux[ww[0]]
+                self.fluxerr = sources.fluxerr[ww[0]]
+                self.fwhm = sources.fwhm[ww[0]]
+                self.mag = -2.5*np.log10(self.flux)+self.zp
+                self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+            else:
+                print len(ww)
+                self.found = False
+        else:
+            self.found = False
  
     def zeropoint(self,filters):
         '''
@@ -959,10 +990,20 @@ class photometry(object):
 
         #Execute query and retrieve position information
         eph = Horizons(id=self.object,epochs=self.time).ephemerides()
-        ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['V'][0]
+        key = ['V','Tmag','Nmag']
+        if 'V' in eph.keys():
+            ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['V'][0]
+        elif 'Tmag' in eph.keys():
+            if np.isfinite(eph['Tmag'][0]):
+                ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['Tmag'][0]
+            elif np.isfinite(eph['Nmag'][0]):
+                ra,dec,raerr,decerr,mag = eph['RA'][0],eph['DEC'][0],eph['RA_3sigma'][0],eph['DEC_3sigma'][0],eph['Nmag'][0]
+            else:
+                print "No magnitude information found!"
+                pdb.set_trace()
         
         #Find matching source
-        self.error = 2
+        self.error = 1
         sources = self.sources
         if self.flipxy:
             sourcera = self.calc_points[:,1]
@@ -978,48 +1019,38 @@ class photometry(object):
         else:
             sourcemag = -2.5*np.log10(sources.flux)+self.zp
         w = np.where((abs(sourcera-ra)/arcsectodeg<np.sqrt(raerr**2+(self.error)**2)) & 
-            (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+(self.error)**2)) & (abs(sourcemag-mag) < 3))[0]
+            (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+(self.error)**2))& (abs(sourcemag-mag) < 3))[0]
         if len(w) == 1:
             print("Target found!")
-            checkTF = raw_input("Acceptable? (y/n)")
-            if checkTF == 'y':
-                self.found = True
-                self.x = sources.x[w[0]]
-                self.y = sources.y[w[0]]
-                self.flux = sources.flux[w[0]]
-                self.fluxerr = sources.fluxerr[w[0]]
-                self.fwhm = sources.fwhm[w[0]]
-                self.mag = -2.5*np.log10(self.flux)+self.zp
-                self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
-                print self.x
-                print self.y
-            else:
-                self.found = False
+            self.found = True
+            self.x = sources.x[w[0]]
+            self.y = sources.y[w[0]]
+            self.flux = sources.flux[w[0]]
+            self.fluxerr = sources.fluxerr[w[0]]
+            self.fwhm = sources.fwhm[w[0]]
+            self.mag = -2.5*np.log10(self.flux)+self.zp
+            self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+            print self.x,self.y
         elif len(w) > 1:
             print ("WARNING: multiple possible matches found!")
             fwhm = sources.fwhm[w]
             w1 = np.where((fwhm>seeing-seeingvar) & (fwhm<seeing+seeingvar))[0]
-            plt.scatter(sources.x[w[w1]],sources.y[w[w1]])
-            plt.show()
-            checkTF = raw_input("Acceptable? (y/n)")
-            if checkTF == 'y':
-                if len(w1) == 1:
-                    print("Target found!")
-                    self.found = True
-                    self.x = sources.x[w[w1[0]]]
-                    self.y = sources.y[w[w1[0]]]
-                    self.flux = sources.flux[w[w1[0]]]
-                    self.fluxerr = sources.fluxerr[w[w1[0]]]
-                    self.fwhm = sources.fwhm[w[w1[0]]]
-                    self.mag = -2.5*np.log10(self.flux)+self.zp
-                    self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
-                    print self.x
-                    print self.y
-
-                else:
-                    self.found = False
+##            plt.scatter(sources.x[w[w1]],sources.y[w[w1]])
+##            plt.show()
+            if len(w1) == 1:
+                print("Target found!")
+                self.found = True
+                self.x = sources.x[w[w1[0]]]
+                self.y = sources.y[w[w1[0]]]
+                self.flux = sources.flux[w[w1[0]]]
+                self.fluxerr = sources.fluxerr[w[w1[0]]]
+                self.fwhm = sources.fwhm[w[w1[0]]]
+                self.mag = -2.5*np.log10(self.flux)+self.zp
+                self.magerr = np.sqrt(self.zperr**2+(2.5*self.fluxerr/self.flux/np.log(10))**2)
+                print self.x,self.y
             else:
+                print "FAILURE:Possible matches rejected!"
                 self.found = False
         else:
             self.found = False
-            print "No possible matches found!"
+            print "FAILURE:No possible matches found!"

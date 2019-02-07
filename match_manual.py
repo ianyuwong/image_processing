@@ -9,7 +9,7 @@ import os
 import time
 import numpy as np
 
-import aux
+import auxiliary as aux
 
 
 def do_astrometry_manual(files,astrometrydir,stardir,sourcedir,sextractfile,

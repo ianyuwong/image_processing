@@ -9,7 +9,7 @@ import os
 import time
 import numpy as np
 
-import aux
+import auxiliary as aux
 
 def do_photometry(files,stardir,sourcedir,astrometrydir,photometrydir,
                 oldphotometrydir=None,rephot=False,flipxy=False,

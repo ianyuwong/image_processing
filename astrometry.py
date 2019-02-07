@@ -8,7 +8,7 @@ import pdb
 import os
 import time
 
-import aux
+import auxiliary as aux
 
 
 def do_astrometry(files,astrometrydir,stardir,sourcedir,sextractfile,

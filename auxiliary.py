@@ -103,12 +103,12 @@ def flatten(files,filters,flats,bias,flatdir,FILTlabel='FILTER'):
         filt = hdulist[0].header[FILTlabel]
         biascorr = (hdulist[0].data-bias)
         w = np.where(filters == filt)
-        flatimage = biascorr/flats[w]
+        flatimage = biascorr/flats[w][0]
         filename = files[i][files[i].rfind('/')+1:]
         hdu = fits.PrimaryHDU(flatimage,header=hdulist[0].header)
         hdu.writeto(flatdir+'f'+filename,clobber=True)
 
-def invert_mask(file,output,axis=None,mask=None):
+def invert_mask(file,outdir,axis=None,mask=None):
     '''
     Flip image along an axis and/or mask away the region [x1,x2,y1,y2]
     '''
@@ -131,9 +131,11 @@ def invert_mask(file,output,axis=None,mask=None):
         masked = im[y1:y2,x1:x2]
         mask = np.random.normal(loc=med,scale=std,size=np.shape(masked))
         im[y1:y2,x1:x2] = mask
-        
+
+    filename = file[file.rfind('/')+1:]
     hdu = fits.PrimaryHDU(im,header=hdulist[0].header)
-    hdu.writeto(output,clobber=True)
+    hdu.writeto(outdir+filename,clobber=True)
+    
                 
 def fit_intercept(x,b):
     return b+x
@@ -249,7 +251,7 @@ class image(object):
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
-        self.stars = compilestars(self,no_galaxies=False,numb=num_sources*5)
+        self.stars = compilestars(self,no_flux=True,numb=num_sources*5)
 
         #Choose 200 3-source triplets that span most of the image in both x and y directions
         triplets = self.get_triplets()
@@ -285,14 +287,18 @@ class image(object):
             print "Match found!"
             passed = self.transform(order,1)
             passed = self.transform(order,2)
-            #Plot
-            self.plotsolution()
-                       
-            self.sav = raw_input("Acceptable? (y/n)")
-            if self.sav == 'y':
-                return True
-            else:
+            if not passed:
                 return False
+            else:
+                
+                #Plot
+                self.plotsolution()
+                       
+                self.sav = raw_input("Acceptable? (y/n)")
+                if self.sav == 'y':
+                    return True
+                else:
+                    return False
 
     def solveastro_manual(self,order,plotting,reffile,num_sources=30):
         '''
@@ -305,7 +311,7 @@ class image(object):
         minfwhm = 0.5/self.pxscale
         maxfwhm = 5.0/self.pxscale
         self.sources = compilesources(self,minfwhm,maxfwhm,numb=num_sources)
-        self.stars = compilestars(self,no_galaxies=False,nunmb=num_sources*3)
+        self.stars = compilestars(self,no_flux=True,nunmb=num_sources*3)
 
         #Click on matching sources and stars and establish ballpark zeropoint
         click_sources(self)
@@ -456,9 +462,11 @@ class image(object):
                 if w1[0][w2[0][0]] not in sourceidx:
                     sourceidx.append(w1[0][w2[0][0]])
                     staridx.append(i)
-            
-        if len(sourceidx)<max((order+1)*(order+2)/2+1,5):
-            #print "Few matching stars. Trying to re-solve astrometry..."
+        if iter == 0:
+            thres = 5
+        else:
+            thres = max((order+1)*(order+2)/2+1,5)
+        if len(sourceidx)<thres:
             return False
         else:
 ##            #Bump up order if there are many matched sources
@@ -488,7 +496,7 @@ class image(object):
                 self.shift = dist(calc_point,np.array([[self.RA_image,self.DEC_image]]))/arcsectodeg/self.pxscale
             if self.shift > 0.2*max(self.nx,self.ny):
                 return False
-            print "Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+"    Shift = "+str(round(self.shift,1))+" pixels"
+            print "Iter = "+str(iter)+"   Matches = "+str(len(self.src))+"   Error = "+str(round(self.error,3))+" arcsec"+"    Shift = "+str(round(self.shift,1))+" pixels"
 
             return True
 
@@ -665,13 +673,12 @@ def compilesources(im,minfwhm,maxfwhm,numb=30):
     y = data[:,2]
     flux = data[:,3]
     fluxerr = data[:,4]
-    fwhm = data[:,7]
-    flag = data[:,5].astype('int')
-    
+    fwhm = data[:,8]
+    flag = data[:,6].astype('int')
     w = np.where((flux > 0)&(fwhm > minfwhm)&(fwhm < maxfwhm)&((flag == 0)|(flag == 2)))
     return sources(np.column_stack([x[w],y[w],flux[w],fluxerr[w],fwhm[w]]),im.pxscale,numb=numb)
     
-def compilestars(im,no_galaxies=True,numb=100):
+def compilestars(im,no_flux=True,numb=100):
     '''
     Create list of catalog stars for astrometry or photometry
     '''
@@ -690,10 +697,10 @@ def compilestars(im,no_galaxies=True,numb=100):
     zmagerr = data[:,44]
     ikronmag = data[:,83]
     flag = data[:,10]
-    if no_galaxies:
+    if not no_flux:
         w = np.where((mag > 0) & (gmag > 0) & (imag > 0) & (rmag > 0) & (zmag > 0) & (imag-ikronmag < 0.05))
     else:
-        w = np.where((mag != None))      
+        w = np.where((mag != None) & (imag-ikronmag < 0.05))      
     return stars(np.column_stack([ra[w],dec[w],mag[w],gmag[w],gmagerr[w],
                                   rmag[w],rmagerr[w],imag[w],imagerr[w],
                                   zmag[w],zmagerr[w]]),im.flipxy,numb=numb)
@@ -804,7 +811,6 @@ class photometry(object):
             
         self.filename = filename
         self.shortname = self.filename[self.filename.rfind('/')+1:]
-        self.shortname = self.filename[self.filename.rfind('/')+1:]
         self.sourcedir = sourcedir
         self.stardir = stardir
         self.sourcefile = self.sourcedir+self.shortname+'.cat'
@@ -831,7 +837,7 @@ class photometry(object):
         self.flipxy = flipxy
         self.filter = header[FILTlabel]
         self.sources = compilesources(self,0.5/self.pxscale,5.0/self.pxscale,numb=50000)
-        self.stars = compilestars(self,no_galaxies=True,numb=1000)
+        self.stars = compilestars(self,no_flux=False,numb=1000)
 
     def transform(self):
         '''
@@ -1018,8 +1024,8 @@ class photometry(object):
             return
         else:
             sourcemag = -2.5*np.log10(sources.flux)+self.zp
-        w = np.where((abs(sourcera-ra)/arcsectodeg<np.sqrt(raerr**2+(self.error)**2)) & 
-            (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+(self.error)**2))& (abs(sourcemag-mag) < 3))[0]
+        w = np.where((abs(sourcera-ra)/arcsectodeg<np.sqrt(raerr**2+self.error**2)) & 
+            (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+self.error**2))& (abs(sourcemag-mag) < 3))[0]
         if len(w) == 1:
             print("Target found!")
             self.found = True
@@ -1034,7 +1040,7 @@ class photometry(object):
         elif len(w) > 1:
             print ("WARNING: multiple possible matches found!")
             fwhm = sources.fwhm[w]
-            w1 = np.where((fwhm>seeing-seeingvar) & (fwhm<seeing+seeingvar))[0]
+            w1 = np.where((fwhm>seeing-3*seeingvar) & (fwhm<seeing+3*seeingvar))[0]
 ##            plt.scatter(sources.x[w[w1]],sources.y[w[w1]])
 ##            plt.show()
             if len(w1) == 1:

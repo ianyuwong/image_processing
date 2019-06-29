@@ -73,7 +73,7 @@ def loadpickle(filename):
     
     return data      
 
-def makebiasflat(files,imtype='flat',bias=None):
+def makebiasflat(files,imtype='flat',bias=0):
     '''
     Create a median bias or flat image
     '''
@@ -83,7 +83,7 @@ def makebiasflat(files,imtype='flat',bias=None):
         hdulist = fits.open(files[i])
         if i == 0:
             frames = np.zeros((hdulist[0].header['NAXIS2'],hdulist[0].header['NAXIS1'],n))
-        frames[:,:,i] = hdulist[0].data
+        frames[:,:,i] = hdulist[0].data/np.median(hdulist[0].data)
     out = np.median(frames,axis=2)
 
     if imtype == 'flat':
@@ -350,7 +350,7 @@ class image(object):
 
         #Find first pair matches
         ww = np.where(abs(stardist-sourcedist[a,b])/sourcedist[a,b] < self.tolerance)
-        if len(ww) < 1:
+        if len(ww[0]) < 1:
             return False
  
         #Look for other two pair matches
@@ -421,7 +421,7 @@ class image(object):
         else:
             calc_point = trans.__call__(np.array([[self.RA_image,self.DEC_image]]))
         error_tol = 0.3*max(self.nx,self.ny)
-        shift = dist(calc_point,np.array([[self.pointx,self.pointy]]))
+        shift = dist(calc_point,np.array([[self.pointx,self.pointy]]))[0]
         check5 = shift < error_tol
 
         #Check relative photometry
@@ -550,7 +550,10 @@ class image(object):
         ax.imshow(ima,norm=colors.LogNorm() )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         for i in range(len(self.stars.ra)):
-            calc_point=self.revtrans.__call__(np.array([[self.stars.dec[i],self.stars.ra[i]]]))
+            if flipxy:
+                calc_point=self.revtrans.__call__(np.array([[self.stars.dec[i],self.stars.ra[i]]]))
+            else:
+                calc_point=self.revtrans.__call__(np.array([[self.stars.ra[i],self.stars.dec[i]]]))
             ax.scatter(calc_point[0][0],calc_point[0][1],s=110,facecolors='none',edgecolors='green')       
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')
         ax.set_xlim(-1,ima.shape[1])
@@ -700,7 +703,7 @@ def compilestars(im,no_flux=True,numb=100):
     if not no_flux:
         w = np.where((mag > 0) & (gmag > 0) & (imag > 0) & (rmag > 0) & (zmag > 0) & (imag-ikronmag < 0.05))
     else:
-        w = np.where((mag != None) & (imag-ikronmag < 0.05))      
+        w = np.where((mag != None))      
     return stars(np.column_stack([ra[w],dec[w],mag[w],gmag[w],gmagerr[w],
                                   rmag[w],rmagerr[w],imag[w],imagerr[w],
                                   zmag[w],zmagerr[w]]),im.flipxy,numb=numb)

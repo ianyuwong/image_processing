@@ -212,7 +212,7 @@ class image(object):
         else:
             RA = self.RA_image-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = self.DEC_image+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.2)
+        RADIUS = 1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg
               
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)
@@ -237,7 +237,7 @@ class image(object):
         else:
             RA = coord.ra.degree-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = coord.dec.degree+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.1)
+        RADIUS = 1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg
 
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)
@@ -707,7 +707,7 @@ def compilestars(im,no_flux=True,numb=100):
     if not no_flux:
         w = np.where((mag > 0) & (gmag > 0) & (imag > 0) & (rmag > 0) & (zmag > 0) & (imag-ikronmag < 0.05))
     else:
-        w = np.where((mag != None))
+        w = np.where((mag != None))      
     return stars(np.column_stack([ra[w],dec[w],mag[w],gmag[w],gmagerr[w],
                                   rmag[w],rmagerr[w],imag[w],imagerr[w],
                                   zmag[w],zmagerr[w]]),im.flipxy,numb=numb)

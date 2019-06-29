@@ -77,9 +77,10 @@ def makebiasflat(files,imtype='flat',bias=0):
     '''
     Create a median bias or flat image
     '''
-
+    
     n = len(files)
     for i in range(n):
+        print str(i+1)+" out of "+str(n)
         hdulist = fits.open(files[i])
         if i == 0:
             frames = np.zeros((hdulist[0].header['NAXIS2'],hdulist[0].header['NAXIS1'],n))
@@ -92,13 +93,14 @@ def makebiasflat(files,imtype='flat',bias=0):
 
     return out
 
-def flatten(files,filters,flats,bias,flatdir,FILTlabel='FILTER'):
+def flatten(files,filters,flats,flatdir,bias=0,FILTlabel='FILTER'):
     '''
     Flatten images by filter
     '''
 
     n = len(files)
     for i in range(n):
+        print str(i+1)+" out of "+str(n)
         hdulist = fits.open(files[i])
         filt = hdulist[0].header[FILTlabel]
         biascorr = (hdulist[0].data-bias)
@@ -187,6 +189,7 @@ class image(object):
             self.pointy = int(self.ny/2)
         else:
             self.pointx,self.pointy = pointingpixel[0],pointingpixel[1]
+
             
     def runSExtractor(self,sextractfile,alias='sex'):
         '''
@@ -209,7 +212,7 @@ class image(object):
         else:
             RA = self.RA_image-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = self.DEC_image+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.1)     
+        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.2)
               
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)
@@ -257,7 +260,7 @@ class image(object):
         triplets = self.get_triplets()
         #source_triplets = triplets
         source_triplets = triplets[np.random.choice(np.arange(len(triplets)),200)]
- 
+        
         #Try to solve
         solved = False
         att = 0
@@ -352,7 +355,7 @@ class image(object):
         ww = np.where(abs(stardist-sourcedist[a,b])/sourcedist[a,b] < self.tolerance)
         if len(ww[0]) < 1:
             return False
- 
+    
         #Look for other two pair matches
         i = 0
         while i < len(ww[0]):
@@ -367,6 +370,7 @@ class image(object):
                     #Verify
                     candidate = np.array([ww[0][i],ww[1][i],inter[j]])
                     verify = self.verify(triplet,candidate)
+
                     if np.sum(verify) < 6:
                         j += 1
                     else:
@@ -550,11 +554,11 @@ class image(object):
         ax.imshow(ima,norm=colors.LogNorm() )
         ax.scatter(self.sources.x,self.sources.y,s=80,facecolors='none',edgecolors='black')
         for i in range(len(self.stars.ra)):
-            if flipxy:
+            if self.flipxy:
                 calc_point=self.revtrans.__call__(np.array([[self.stars.dec[i],self.stars.ra[i]]]))
             else:
                 calc_point=self.revtrans.__call__(np.array([[self.stars.ra[i],self.stars.dec[i]]]))
-            ax.scatter(calc_point[0][0],calc_point[0][1],s=110,facecolors='none',edgecolors='green')       
+            ax.scatter(calc_point[0][0],calc_point[0][1],s=110,facecolors='none',edgecolors='green')
         ax.scatter(self.sources.x[self.matchidx],self.sources.y[self.matchidx],s=50,facecolors='none',edgecolors='blue')
         ax.set_xlim(-1,ima.shape[1])
         ax.set_ylim(-1,ima.shape[0])
@@ -660,7 +664,7 @@ class stars(object):
         self.Imagerr = Imagerr[sorting]
         self.index = np.arange(n)
         coords = zip(self.ra,self.dec)
-        dist = distance.cdist(coords,coords,'euclidean')*60*60    
+        dist = distance.cdist(coords,coords,'euclidean')*60*60
         dist[np.arange(dist.shape[0])[:,None] >= np.arange(dist.shape[1])] = np.nan
         self.dist = dist
 

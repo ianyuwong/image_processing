@@ -212,7 +212,7 @@ class image(object):
         else:
             RA = self.RA_image-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = self.DEC_image+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.2)
+        RADIUS = 1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg
               
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)
@@ -237,7 +237,7 @@ class image(object):
         else:
             RA = coord.ra.degree-(int(self.nx/2)-self.pointx)*self.pxscale*arcsectodeg
             DEC = coord.dec.degree+(int(self.ny/2)-self.pointy)*self.pxscale*arcsectodeg
-        RADIUS = min(1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg,0.1)
+        RADIUS = 1.2*max(self.nx,self.ny)/2*self.pxscale*arcsectodeg
 
         url = 'http://gsss.stsci.edu/webservices/vo/CatalogSearch.aspx?RA='+str(RA)+'&DEC='+str(DEC)+'&SR='+str(RADIUS)+'&FORMAT=CSV&CAT=PS1V3OBJECTS&MINDET=10&MAXOBJ=500'
         out = urllib.urlopen(url)

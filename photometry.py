@@ -37,7 +37,7 @@ def do_photometry(files,stardir,sourcedir,astrometrydir,photometrydir,
             else:
                 phot.rematching(oldphotometrydir,filters)
             delattr(phot,"sources")
-            aux.savepickle(phot,phot.photometrydir+phot.shortname+'.phot')
             if phot.found:
+                aux.savepickle(phot,phot.photometrydir+phot.shortname+'.phot')
                 print "mag = "+str(round(phot.mag,3))+", magerr = "+str(round(phot.magerr,3))
 

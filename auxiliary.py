@@ -843,7 +843,7 @@ class photometry(object):
             self.time = float(self.time)+2400000.5
         self.flipxy = flipxy
         self.filter = header[FILTlabel]
-        self.sources = compilesources(self,0.5/self.pxscale,5.0/self.pxscale,numb=50000)
+        self.sources = compilesources(self,0.5/self.pxscale,5.0/self.pxscale,numb=300000)
         self.stars = compilestars(self,no_flux=False,numb=1000)
 
     def transform(self):
@@ -966,7 +966,7 @@ class photometry(object):
             self.zp,self.zperr = 0,0
             return
         zpguess = np.median(zps)
-        w = np.where(abs(zps-zpguess) < 0.2)
+        w = np.where((abs(zps-zpguess) < 0.2)&(catmagerr>0))
         catmag = catmag[w]
         catmagerr = catmagerr[w]
         immag = immag[w]
@@ -978,6 +978,7 @@ class photometry(object):
         fit,cov = scipy.optimize.curve_fit(fit_intercept,immag,catmag,sigma=catmagerr)
         self.zp = fit[0]
         self.zperr = np.sqrt(cov[0][0])
+        print "Zeropoint: "+str(round(self.zp,4))+" +/- "+str(round(self.zperr,4))
 
         #Plot
         plt.figure()
@@ -993,7 +994,7 @@ class photometry(object):
         Choose correct column index in matches array for the given filter
         '''
 
-        w = np.where(filters == self.filter)[0][0]
+        w = np.where(filters == self.filter[0:1])[0][0]
         self.filtindex = 8+2*w
 
     def autotarget(self):
@@ -1033,6 +1034,10 @@ class photometry(object):
             sourcemag = -2.5*np.log10(sources.flux)+self.zp
         w = np.where((abs(sourcera-ra)/arcsectodeg<np.sqrt(raerr**2+self.error**2)) & 
             (abs(sourcedec-dec)/arcsectodeg<np.sqrt(decerr**2+self.error**2))& (abs(sourcemag-mag) < 3))[0]
+
+        xcheck,ycheck = self.revtrans.__call__(np.array([(ra,dec)]))[0]
+        print "Predicted target location: x = "+str(int(round(xcheck)))+", y = "+str(int(round(ycheck)))
+        
         if len(w) == 1:
             print("Target found!")
             self.found = True

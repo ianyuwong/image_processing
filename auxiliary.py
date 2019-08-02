@@ -84,12 +84,12 @@ def makebiasflat(files,imtype='flat',bias=0):
         hdulist = fits.open(files[i])
         if i == 0:
             frames = np.zeros((hdulist[0].header['NAXIS2'],hdulist[0].header['NAXIS1'],n))
-        frames[:,:,i] = hdulist[0].data/np.median(hdulist[0].data)
+        frame = hdulist[0].data-bias
+        if imtype == 'flat':
+            frame = frame/np.median(frame)
+        frames[:,:,i] = frame
+        
     out = np.median(frames,axis=2)
-
-    if imtype == 'flat':
-        out = (out-bias)
-        out = out/np.median(out)
 
     return out
 
@@ -108,7 +108,7 @@ def flatten(files,filters,flats,flatdir,bias=0,FILTlabel='FILTER'):
         flatimage = biascorr/flats[w][0]
         filename = files[i][files[i].rfind('/')+1:]
         hdu = fits.PrimaryHDU(flatimage,header=hdulist[0].header)
-        hdu.writeto(flatdir+'f'+filename,clobber=True)
+        hdu.writeto(flatdir+'f'+filename,overwrite=True)
 
 def invert_mask(file,outdir,axis=None,mask=None):
     '''
@@ -136,7 +136,7 @@ def invert_mask(file,outdir,axis=None,mask=None):
 
     filename = file[file.rfind('/')+1:]
     hdu = fits.PrimaryHDU(im,header=hdulist[0].header)
-    hdu.writeto(outdir+filename,clobber=True)
+    hdu.writeto(outdir+filename,overwrite=True)
     
                 
 def fit_intercept(x,b):
@@ -424,7 +424,7 @@ class image(object):
             calc_point = trans.__call__(np.array([[self.DEC_image,self.RA_image]]))
         else:
             calc_point = trans.__call__(np.array([[self.RA_image,self.DEC_image]]))
-        error_tol = 0.3*max(self.nx,self.ny)
+        error_tol = 0.2*max(self.nx,self.ny)
         shift = dist(calc_point,np.array([[self.pointx,self.pointy]]))[0]
         check5 = shift < error_tol
 
@@ -467,9 +467,9 @@ class image(object):
                     sourceidx.append(w1[0][w2[0][0]])
                     staridx.append(i)
         if iter == 0:
-            thres = 5
+            thres = 10
         else:
-            thres = max((order+1)*(order+2)/2+1,5)
+            thres = max((order+1)*(order+2)/2+1,10)
         if len(sourceidx)<thres:
             return False
         else:
@@ -514,7 +514,7 @@ class image(object):
 
         #Filter away sources with nearby neighbors
 #        mindist = (max(self.sources.y)-min(self.sources.y))*self.tolerance*self.pxscale/2.
-        mindist = 3
+        mindist = 5
         w = np.where(self.sources.dist < mindist)
         filt_index = (self.sources.index)
         if len(w[0]) > 0:
